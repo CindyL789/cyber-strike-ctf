@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered CTF player profile and scoring metrics",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "username": { "type": "string", "maxLength": 50, "minLength": 2 },
+        "email": { "type": "string", "maxLength": 100 },
+        "score": { "type": "number" },
+        "solvesCount": { "type": "number" },
+        "solvedChallengeIds": { "type": "array" },
+        "unlockedHintIds": { "type": "array" },
+        "role": { "type": "string", "enum": ["player", "admin"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "username", "score", "solvesCount", "role", "createdAt"]
+    },
+    "Challenge": {
+      "title": "Challenge",
+      "description": "Capture The Flag problem and flags",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 100 },
+        "category": { "type": "string", "enum": ["Web", "Crypto", "Reverse", "Forensics", "Pwn"] },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
+        "points": { "type": "number" },
+        "author": { "type": "string", "maxLength": 50 },
+        "solvesCount": { "type": "number" },
+        "flag": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "tags": { "type": "array" },
+        "writeup": { "type": "string", "maxLength": 3000 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "title", "category", "difficulty", "points", "flag", "description"]
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "Live CTF feed events for challenge captures",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "teamName": { "type": "string", "maxLength": 50 },
+        "challengeTitle": { "type": "string", "maxLength": 100 },
+        "category": { "type": "string" },
+        "points": { "type": "number" },
+        "timestamp": { "type": "string", "maxLength": 50 },
+        "isFirstBlood": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "teamName", "challengeTitle", "points"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Privileged administrator designation",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 100 },
+        "assignedAt": { "type": "string" }
+      },
+      "required": ["email"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of registered player profiles, progression, and scoreboard data."
+    },
+    "/challenges/{challengeId}": {
+      "schema": "Challenge",
+      "description": "Dynamic CTF challenges managed by administrators."
+    },
+    "/activity/{activityId}": {
+      "schema": "Activity",
+      "description": "Live challenge capture feed items broadcasted in real-time."
+    },
+    "/admins/{userId}": {
+      "schema": "Admin",
+      "description": "List of authorized administrator user IDs."
+    }
+  }
+}
