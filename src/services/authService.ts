@@ -14,6 +14,10 @@ import { UserProfile, UserRole, Category } from '../types/ctf';
 
 const ADMIN_EMAIL = 'cindylouis2228@gmail.com';
 
+function getRoleForUser(email: string | null | undefined): UserRole {
+  return email === ADMIN_EMAIL ? 'admin' : 'player';
+}
+
 function cleanUsername(raw: string): string {
   return raw.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
 }
@@ -49,8 +53,7 @@ export async function registerPlayer(
 
     await updateProfile(user, { displayName: username });
 
-    const role: UserRole =
-      user.email === ADMIN_EMAIL || username.toLowerCase() === 'admin' ? 'admin' : 'player';
+    const role = getRoleForUser(user.email || emailToUse);
 
     const defaultProfile: UserProfile = {
       uid: user.uid,
@@ -117,8 +120,7 @@ export async function loginPlayer(identifier: string, passwordInput: string): Pr
     } else {
       // Re-create profile if missing
       const username = user.displayName || identifier.split('@')[0];
-      const role: UserRole =
-        user.email === ADMIN_EMAIL || username.toLowerCase() === 'admin' ? 'admin' : 'player';
+      const role = getRoleForUser(user.email || emailToUse);
 
       const newProfile: UserProfile = {
         uid: user.uid,
@@ -163,8 +165,7 @@ export async function loginWithGoogle(): Promise<UserProfile> {
       return snap.data() as UserProfile;
     } else {
       const username = user.displayName?.replace(/\s+/g, '_') || user.email?.split('@')[0] || 'Operator';
-      const role: UserRole =
-        user.email === ADMIN_EMAIL || username.toLowerCase() === 'admin' ? 'admin' : 'player';
+      const role = getRoleForUser(user.email);
 
       const newProfile: UserProfile = {
         uid: user.uid,
@@ -230,8 +231,7 @@ export function subscribeToAuthProfile(
         } else {
           // Default profile if not yet written
           const username = user.displayName || user.email?.split('@')[0] || 'GuestOperator';
-          const role: UserRole =
-            user.email === ADMIN_EMAIL || username.toLowerCase() === 'admin' ? 'admin' : 'player';
+          const role = getRoleForUser(user.email);
 
           const stub: UserProfile = {
             uid: user.uid,

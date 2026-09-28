@@ -12,7 +12,9 @@
         "solvesCount": { "type": "number" },
         "solvedChallengeIds": { "type": "array" },
         "unlockedHintIds": { "type": "array" },
+        "categoryBreakdown": { "type": "object" },
         "role": { "type": "string", "enum": ["player", "admin"] },
+        "lastSolveTime": { "type": "string", "maxLength": 50 },
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "string" }
       },
@@ -26,14 +28,16 @@
         "id": { "type": "string", "maxLength": 128 },
         "title": { "type": "string", "maxLength": 100 },
         "category": { "type": "string", "enum": ["Web", "Crypto", "Reverse", "Forensics", "Pwn"] },
-        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard", "Insane"] },
         "points": { "type": "number" },
         "author": { "type": "string", "maxLength": 50 },
         "solvesCount": { "type": "number" },
         "flag": { "type": "string", "maxLength": 200 },
         "description": { "type": "string", "maxLength": 2000 },
         "tags": { "type": "array" },
+        "hints": { "type": "array" },
         "writeup": { "type": "string", "maxLength": 3000 },
+        "initialState": { "type": "object" },
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "string" }
       },
@@ -52,6 +56,7 @@
         "points": { "type": "number" },
         "timestamp": { "type": "string", "maxLength": 50 },
         "isFirstBlood": { "type": "boolean" },
+        "isUser": { "type": "boolean" },
         "createdAt": { "type": "string" }
       },
       "required": ["id", "userId", "teamName", "challengeTitle", "points"]

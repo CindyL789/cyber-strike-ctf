@@ -11,10 +11,14 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isBootstrapAdminEmail() {
+      return isSignedIn() && request.auth.token.email == "cindylouis2228@gmail.com";
+    }
+
     function isAdmin() {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        request.auth.token.email == "cindylouis2228@gmail.com"
+        isBootstrapAdminEmail()
       );
     }
 
@@ -30,9 +34,16 @@ service cloud.firestore {
     // Player profiles and scores
     match /users/{userId} {
       allow read: if true;
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.role == (isBootstrapAdminEmail() ? 'admin' : 'player');
       allow update: if isSignedIn() && (
-        request.auth.uid == userId || isAdmin()
+        (
+          isOwner(userId)
+          && request.resource.data.uid == userId
+          && request.resource.data.role == resource.data.role
+        )
+        || isAdmin()
       );
       allow delete: if isAdmin();
     }
