@@ -27,6 +27,8 @@ import { LiveFeedView } from './components/LiveFeedView';
 import { RulesView } from './components/RulesView';
 import { AuthModal } from './components/AuthModal';
 import { AdminDashboard } from './components/AdminDashboard';
+import { TeamHubView } from './components/TeamHubView';
+import { DailyOpBanner } from './components/DailyOpBanner';
 import { sound } from './utils/audio';
 
 // Services
@@ -38,6 +40,7 @@ import {
   unlockHint
 } from './services/challengeService';
 import { subscribeToScoreboard } from './services/scoreboardService';
+import { ensureDailyChallengePublished, getDailyOpInfo } from './services/dailyChallengeService';
 
 export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -52,12 +55,13 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<'All' | Category>('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState<'All' | Difficulty>('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentTab, setCurrentTab] = useState<'challenges' | 'scoreboard' | 'activity' | 'rules' | 'admin'>('challenges');
+  const [currentTab, setCurrentTab] = useState<'challenges' | 'scoreboard' | 'activity' | 'teams' | 'rules' | 'admin'>('challenges');
   const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null);
   const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [bannerNotice, setBannerNotice] = useState<string | null>(null);
+  const [isDailyFilterActive, setIsDailyFilterActive] = useState(false);
 
   // 1. Subscribe to Firebase Auth and User Profile
   useEffect(() => {
@@ -67,7 +71,14 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // 2. Subscribe to Challenges in Firestore
+  // 2. Ensure today's Daily Challenge is initialized in Firestore
+  useEffect(() => {
+    ensureDailyChallengePublished().catch(err => {
+      console.warn('Daily challenge auto-seed notice:', err);
+    });
+  }, []);
+
+  // 3. Subscribe to Challenges in Firestore
   useEffect(() => {
     const unsub = subscribeToChallenges(updatedChallenges => {
       setChallenges(updatedChallenges);
@@ -214,9 +225,17 @@ export default function App() {
     setTimeout(() => setBannerNotice(null), 3000);
   };
 
+  // Compute daily challenge operation status
+  const dailyOpInfo = useMemo(() => {
+    return getDailyOpInfo(challenges, userProfile);
+  }, [challenges, userProfile]);
+
   // Filtered challenges
   const filteredChallenges = useMemo(() => {
     return challenges.filter(c => {
+      if (isDailyFilterActive && !c.isDaily && c.id !== dailyOpInfo.challengeId) {
+        return false;
+      }
       const matchCat = selectedCategory === 'All' || c.category === selectedCategory;
       const matchDiff = selectedDifficulty === 'All' || c.difficulty === selectedDifficulty;
       const matchSearch =
@@ -225,7 +244,7 @@ export default function App() {
         c.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchCat && matchDiff && matchSearch;
     });
-  }, [challenges, selectedCategory, selectedDifficulty, searchQuery]);
+  }, [challenges, selectedCategory, selectedDifficulty, searchQuery, isDailyFilterActive, dailyOpInfo.challengeId]);
 
   return (
     <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans">
@@ -283,6 +302,20 @@ export default function App() {
         {/* Navigation Tab: CHALLENGES */}
         {currentTab === 'challenges' && (
           <div className="space-y-6">
+            {/* Daily Operation Special Mission Banner */}
+            <DailyOpBanner
+              dailyInfo={dailyOpInfo}
+              userProfile={userProfile}
+              onLaunchDaily={ch => {
+                sound.playClick();
+                setActiveChallenge(ch);
+              }}
+              onFilterDailyOps={() => {
+                setIsDailyFilterActive(prev => !prev);
+              }}
+              isDailyFilterActive={isDailyFilterActive}
+            />
+
             {/* Arena Status & Telemetry Banner */}
             <div className="p-6 bg-slate-950 border border-slate-800 rounded-xl space-y-4 shadow-xl">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -314,6 +347,15 @@ export default function App() {
                       {solvedIds.length} / {challenges.length}
                     </div>
                   </div>
+                  {userProfile && (
+                    <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg">
+                      <div className="text-slate-500 text-[10px] uppercase">Daily Streak</div>
+                      <div className="text-orange-400 font-bold text-base tabular-nums flex items-center gap-1">
+                        <Flame className="w-3.5 h-3.5 fill-orange-400 text-orange-400" />
+                        <span>{userProfile.dailyStreak || 0}d</span>
+                      </div>
+                    </div>
+                  )}
                   <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg">
                     <div className="text-slate-500 text-[10px] uppercase">Live Rank</div>
                     <div className="text-amber-400 font-bold text-base tabular-nums">
@@ -363,6 +405,21 @@ export default function App() {
                       {cat}
                     </button>
                   ))}
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      setIsDailyFilterActive(prev => !prev);
+                    }}
+                    className={`px-2.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                      isDailyFilterActive
+                        ? 'bg-amber-500/20 text-amber-300 shadow-sm border border-amber-500/50'
+                        : 'text-slate-400 hover:text-amber-300'
+                    }`}
+                    title="Filter challenges to daily operations"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Daily Ops</span>
+                  </button>
                 </div>
 
                 {/* Difficulty Filter Tabs */}
@@ -493,6 +550,20 @@ export default function App() {
 
         {/* Navigation Tab: SCOREBOARD */}
         {currentTab === 'scoreboard' && <LeaderboardView teams={teams} />}
+
+        {/* Navigation Tab: SQUADS / TEAMS */}
+        {currentTab === 'teams' && (
+          <TeamHubView
+            userProfile={userProfile}
+            allChallenges={challenges}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onNotice={msg => {
+              setBannerNotice(msg);
+              setTimeout(() => setBannerNotice(null), 5000);
+            }}
+            teamsLeaderboard={teams}
+          />
+        )}
 
         {/* Navigation Tab: ACTIVITY FEED */}
         {currentTab === 'activity' && <LiveFeedView activities={activities} />}

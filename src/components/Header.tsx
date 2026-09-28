@@ -9,14 +9,15 @@ import {
   User,
   ShieldAlert,
   LogIn,
-  LogOut
+  LogOut,
+  Github
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { UserProfile } from '../types/ctf';
 
 interface Props {
-  currentTab: 'challenges' | 'scoreboard' | 'activity' | 'rules' | 'admin';
-  onSelectTab: (tab: 'challenges' | 'scoreboard' | 'activity' | 'rules' | 'admin') => void;
+  currentTab: 'challenges' | 'scoreboard' | 'activity' | 'teams' | 'rules' | 'admin';
+  onSelectTab: (tab: 'challenges' | 'scoreboard' | 'activity' | 'teams' | 'rules' | 'admin') => void;
   userProfile: UserProfile | null;
   userRank: number;
   onOpenWorkbench: () => void;
@@ -100,6 +101,24 @@ export const Header: React.FC<Props> = ({
             }`}
           >
             Leaderboard
+          </button>
+          <button
+            onClick={() => {
+              sound.playClick();
+              onSelectTab('teams');
+            }}
+            className={`transition-colors pb-1 border-b-2 flex items-center gap-1.5 ${
+              currentTab === 'teams'
+                ? 'border-indigo-400 text-white'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>Squads</span>
+            {userProfile?.teamTag && (
+              <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                [{userProfile.teamTag}]
+              </span>
+            )}
           </button>
           <button
             onClick={() => {
@@ -189,12 +208,28 @@ export const Header: React.FC<Props> = ({
             )}
           </button>
 
+          {/* GitHub Repository Link */}
+          <a
+            href="https://github.com/CindyL789/cyber-strike-ctf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors"
+            title="GitHub Repository: CindyL789/cyber-strike-ctf"
+          >
+            <Github className="w-4 h-4 text-slate-300 hover:text-white" />
+          </a>
+
           {/* User Account / Profile Controls */}
           <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
             {userProfile ? (
               <div className="flex items-center gap-2.5">
                 <div className="text-right hidden sm:block">
                   <div className="text-xs font-semibold text-slate-200 font-mono flex items-center justify-end gap-1.5">
+                    {userProfile.teamTag && (
+                      <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                        [{userProfile.teamTag}]
+                      </span>
+                    )}
                     <span>{displayName}</span>
                     {isAdmin && (
                       <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
@@ -202,8 +237,13 @@ export const Header: React.FC<Props> = ({
                       </span>
                     )}
                   </div>
-                  <div className="text-[11px] text-emerald-400 font-mono tabular-nums">
-                    {score} pts · #{userRank} ({solves} solves)
+                  <div className="text-[11px] text-emerald-400 font-mono tabular-nums flex items-center justify-end gap-1.5">
+                    {userProfile.dailyStreak && userProfile.dailyStreak > 0 ? (
+                      <span className="text-[10px] text-orange-400 font-bold bg-orange-950/60 px-1 py-0.2 rounded border border-orange-500/40 flex items-center gap-0.5">
+                        🔥 {userProfile.dailyStreak}d
+                      </span>
+                    ) : null}
+                    <span>{userProfile.teamName ? `${userProfile.teamName} · ` : ''}{score} pts · #{userRank}</span>
                   </div>
                 </div>
 

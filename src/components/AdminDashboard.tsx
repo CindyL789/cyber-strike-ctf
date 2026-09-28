@@ -13,10 +13,17 @@ import {
   Eye,
   RefreshCw,
   Search,
-  Filter
+  Filter,
+  Zap,
+  Clock,
+  Flame,
+  Calendar,
+  Award
 } from 'lucide-react';
 import { Challenge, Category, Difficulty } from '../types/ctf';
 import { createChallenge, updateChallenge, deleteChallenge } from '../services/challengeService';
+import { forceRotateDailyChallenge, getUtcDateString } from '../services/dailyChallengeService';
+import { DAILY_CHALLENGES_POOL } from '../data/dailyChallenges';
 import { sound } from '../utils/audio';
 
 interface Props {
@@ -35,6 +42,7 @@ export const AdminDashboard: React.FC<Props> = ({ challenges, onRefresh }) => {
   const [filterCat, setFilterCat] = useState<'All' | Category>('All');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isRotating, setIsRotating] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<{
@@ -52,6 +60,8 @@ export const AdminDashboard: React.FC<Props> = ({ challenges, onRefresh }) => {
     hint2Text: string;
     hint2Cost: number;
     writeup: string;
+    isDaily: boolean;
+    dailyBonusPoints: number;
   }>({
     id: '',
     title: '',
@@ -66,8 +76,29 @@ export const AdminDashboard: React.FC<Props> = ({ challenges, onRefresh }) => {
     hint1Cost: 15,
     hint2Text: '',
     hint2Cost: 30,
-    writeup: ''
+    writeup: '',
+    isDaily: false,
+    dailyBonusPoints: 100
   });
+
+  const handleRotateDaily = async (targetId?: string) => {
+    sound.playClick();
+    setIsRotating(true);
+    try {
+      await forceRotateDailyChallenge(targetId);
+      sound.playSuccess();
+      setFeedback({
+        type: 'success',
+        text: 'Daily Challenge rotated successfully! All players now receive updated daily streak bonuses.'
+      });
+      if (onRefresh) onRefresh();
+    } catch (err: unknown) {
+      sound.playError();
+      setFeedback({ type: 'error', text: (err as Error).message || 'Failed to rotate daily challenge.' });
+    } finally {
+      setIsRotating(false);
+    }
+  };
 
   const openCreateModal = () => {
     sound.playClick();
@@ -87,7 +118,9 @@ export const AdminDashboard: React.FC<Props> = ({ challenges, onRefresh }) => {
       hint1Cost: 10,
       hint2Text: 'Notice the missing input validation.',
       hint2Cost: 20,
-      writeup: 'Detailed walkthrough of the vulnerability root cause.'
+      writeup: 'Detailed walkthrough of the vulnerability root cause.',
+      isDaily: false,
+      dailyBonusPoints: 100
     });
     setIsModalOpen(true);
   };
@@ -109,7 +142,9 @@ export const AdminDashboard: React.FC<Props> = ({ challenges, onRefresh }) => {
       hint1Cost: ch.hints[0]?.cost || 10,
       hint2Text: ch.hints[1]?.text || '',
       hint2Cost: ch.hints[1]?.cost || 20,
-      writeup: ch.writeup || ''
+      writeup: ch.writeup || '',
+      isDaily: Boolean(ch.isDaily),
+      dailyBonusPoints: ch.dailyBonusPoints || 100
     });
     setIsModalOpen(true);
   };
@@ -178,7 +213,10 @@ export const AdminDashboard: React.FC<Props> = ({ challenges, onRefresh }) => {
           description: formData.description.trim(),
           tags: tagsArray,
           hints,
-          writeup: formData.writeup.trim()
+          writeup: formData.writeup.trim(),
+          isDaily: formData.isDaily,
+          dailyBonusPoints: formData.isDaily ? Number(formData.dailyBonusPoints) || 100 : undefined,
+          dailyDate: formData.isDaily ? getUtcDateString() : undefined
         });
         setFeedback({ type: 'success', text: `Challenge "${formData.title}" updated successfully.` });
       } else {
@@ -194,7 +232,10 @@ export const AdminDashboard: React.FC<Props> = ({ challenges, onRefresh }) => {
           description: formData.description.trim(),
           tags: tagsArray,
           hints,
-          writeup: formData.writeup.trim()
+          writeup: formData.writeup.trim(),
+          isDaily: formData.isDaily,
+          dailyBonusPoints: formData.isDaily ? Number(formData.dailyBonusPoints) || 100 : undefined,
+          dailyDate: formData.isDaily ? getUtcDateString() : undefined
         });
         setFeedback({ type: 'success', text: `New challenge "${formData.title}" created in live database.` });
       }
@@ -269,6 +310,77 @@ export const AdminDashboard: React.FC<Props> = ({ challenges, onRefresh }) => {
         )}
       </div>
 
+      {/* Daily Operations Control Card */}
+      <div className="p-5 bg-slate-950 border border-amber-500/30 rounded-xl space-y-4 shadow-lg">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">
+              <Zap className="w-4 h-4 fill-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <span>Automated Daily Operations Engine</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  UTC ROTATION
+                </span>
+              </h2>
+              <p className="text-[11px] text-slate-400">
+                A new challenge unlocks daily with +100 bonus streak points. Admins can manually force-rotate or designate any target as today's active Daily Op.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleRotateDaily()}
+              disabled={isRotating}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 shadow-md"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRotating ? 'animate-spin' : ''}`} />
+              <span>Rotate Next Daily Op</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Daily Pool Status Bar */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-900 text-xs font-mono">
+          <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-lg">
+            <div className="text-slate-500 text-[10px] uppercase">Daily Pool Depth</div>
+            <div className="text-emerald-400 font-bold text-sm mt-0.5">
+              {DAILY_CHALLENGES_POOL.length} Challenges Ready
+            </div>
+          </div>
+
+          <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-lg">
+            <div className="text-slate-500 text-[10px] uppercase">Daily Streak Reward</div>
+            <div className="text-amber-400 font-bold text-sm mt-0.5 flex items-center gap-1">
+              <Flame className="w-3.5 h-3.5 text-orange-400" />
+              <span>+100 PTS + Streak Multiplier</span>
+            </div>
+          </div>
+
+          <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-lg">
+            <div className="text-slate-500 text-[10px] uppercase">Designate Daily Op</div>
+            <select
+              onChange={e => {
+                if (e.target.value) {
+                  handleRotateDaily(e.target.value);
+                }
+              }}
+              defaultValue=""
+              className="w-full mt-1 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-[11px] text-slate-200 font-mono focus:outline-none focus:border-amber-500"
+            >
+              <option value="" disabled>Select challenge to set as Daily Op...</option>
+              {challenges.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.title} ({c.category} · {c.points}pts)
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex items-center gap-1 p-1 bg-slate-950 border border-slate-800 rounded-lg overflow-x-auto text-xs">
@@ -331,7 +443,15 @@ export const AdminDashboard: React.FC<Props> = ({ challenges, onRefresh }) => {
                 return (
                   <tr key={ch.id} className="hover:bg-slate-900/40 text-slate-300 transition-colors">
                     <td className="py-3 px-4">
-                      <div className="font-sans font-bold text-slate-100">{ch.title}</div>
+                      <div className="font-sans font-bold text-slate-100 flex items-center gap-1.5 flex-wrap">
+                        <span>{ch.title}</span>
+                        {ch.isDaily && (
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-0.5 font-bold">
+                            <Zap className="w-2.5 h-2.5 fill-amber-400" />
+                            DAILY (+{ch.dailyBonusPoints || 100})
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[11px] text-slate-500">{ch.id} · @{ch.author}</div>
                     </td>
                     <td className="py-3 px-4 font-sans">
@@ -551,6 +671,37 @@ export const AdminDashboard: React.FC<Props> = ({ challenges, onRefresh }) => {
                   placeholder="e.g. SQLi, Authentication, SQLite"
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
                 />
+              </div>
+
+              {/* Daily Challenge Designation Toggle */}
+              <div className="p-3 bg-amber-950/20 border border-amber-500/30 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.isDaily}
+                    onChange={e => setFormData({ ...formData, isDaily: e.target.checked })}
+                    className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500"
+                  />
+                  <span className="text-xs text-amber-300 font-semibold flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 fill-amber-400" />
+                    <span>Feature as Daily Challenge (Eligible for Daily Streak Rewards)</span>
+                  </span>
+                </label>
+
+                {formData.isDaily && (
+                  <div className="flex items-center gap-2 text-xs font-mono">
+                    <span className="text-slate-400">Streak Bonus:</span>
+                    <input
+                      type="number"
+                      value={formData.dailyBonusPoints}
+                      onChange={e => setFormData({ ...formData, dailyBonusPoints: Number(e.target.value) })}
+                      min={0}
+                      max={500}
+                      className="w-20 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-amber-300 text-xs font-mono"
+                    />
+                    <span className="text-slate-500">pts</span>
+                  </div>
+                )}
               </div>
 
               {/* Hints */}

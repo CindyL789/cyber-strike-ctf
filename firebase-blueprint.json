@@ -70,12 +70,51 @@
         "assignedAt": { "type": "string" }
       },
       "required": ["email"]
+    },
+    "Team": {
+      "title": "Team",
+      "description": "CTF player teams, aggregated scores, combined solves, and invitation codes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 60, "minLength": 2 },
+        "tag": { "type": "string", "maxLength": 6, "minLength": 2 },
+        "description": { "type": "string", "maxLength": 500 },
+        "captainId": { "type": "string", "maxLength": 128 },
+        "captainName": { "type": "string", "maxLength": 50 },
+        "memberIds": { "type": "array" },
+        "inviteCode": { "type": "string", "maxLength": 32 },
+        "score": { "type": "number" },
+        "solvesCount": { "type": "number" },
+        "solvedChallengeIds": { "type": "array" },
+        "isOpen": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "tag", "captainId", "memberIds", "inviteCode", "score", "solvesCount", "createdAt"]
+    },
+    "DailyConfig": {
+      "title": "DailyConfig",
+      "description": "Daily Challenge configuration, rotation tracking, and bonus point rules",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "maxLength": 20 },
+        "challengeId": { "type": "string", "maxLength": 128 },
+        "bonusPoints": { "type": "number" },
+        "theme": { "type": "string", "maxLength": 100 },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["date", "challengeId"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
       "description": "Collection of registered player profiles, progression, and scoreboard data."
+    },
+    "/teams/{teamId}": {
+      "schema": "Team",
+      "description": "Teams aggregating member progress, shared challenge solves, and rankings."
     },
     "/challenges/{challengeId}": {
       "schema": "Challenge",
@@ -84,6 +123,10 @@
     "/activity/{activityId}": {
       "schema": "Activity",
       "description": "Live challenge capture feed items broadcasted in real-time."
+    },
+    "/daily_config/{configId}": {
+      "schema": "DailyConfig",
+      "description": "Daily challenge rotation tracking and streak configuration."
     },
     "/admins/{userId}": {
       "schema": "Admin",

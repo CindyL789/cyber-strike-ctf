@@ -48,6 +48,21 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Teams aggregating scores, solved challenges, and invitation codes
+    match /teams/{teamId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.captainId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.captainId == request.auth.uid ||
+        request.auth.uid in resource.data.memberIds ||
+        request.resource.data.memberIds.hasAny([request.auth.uid]) ||
+        isAdmin()
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.captainId == request.auth.uid || isAdmin()
+      );
+    }
+
     // Dynamic CTF Challenges
     match /challenges/{challengeId} {
       allow read: if true;
@@ -62,6 +77,12 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
+    }
+
+    // Daily Challenge configuration and rotation
+    match /daily_config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // Admin list

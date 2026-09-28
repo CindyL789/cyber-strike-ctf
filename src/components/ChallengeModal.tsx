@@ -19,6 +19,11 @@ import { PaddingOracleSandbox } from './challenges/PaddingOracleSandbox';
 import { CustomVmSandbox } from './challenges/CustomVmSandbox';
 import { FormatStringSandbox } from './challenges/FormatStringSandbox';
 import { MemoryForensicsSandbox } from './challenges/MemoryForensicsSandbox';
+import { SsrfSandbox } from './challenges/SsrfSandbox';
+import { VigenereAutokeySandbox } from './challenges/VigenereAutokeySandbox';
+import { StegoBitplanesSandbox } from './challenges/StegoBitplanesSandbox';
+import { Ret2WinSandbox } from './challenges/Ret2WinSandbox';
+import { UniversalTerminalSandbox } from './challenges/UniversalTerminalSandbox';
 
 interface Props {
   challenge: Challenge;
@@ -92,8 +97,16 @@ export const ChallengeModal: React.FC<Props> = ({
         return <FormatStringSandbox onFlagFound={handleFlagFoundInSandbox} />;
       case 'memory-dump-volatility-forensics':
         return <MemoryForensicsSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'daily-ssrf-metadata':
+        return <SsrfSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'daily-vigenere-autokey':
+        return <VigenereAutokeySandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'daily-stego-bitplanes':
+        return <StegoBitplanesSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'daily-pwn-ret2win':
+        return <Ret2WinSandbox onFlagFound={handleFlagFoundInSandbox} />;
       default:
-        return <div className="text-slate-400">Sandbox environment ready.</div>;
+        return <UniversalTerminalSandbox challenge={challenge} onFlagFound={handleFlagFoundInSandbox} />;
     }
   };
 

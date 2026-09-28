@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Flag, Lightbulb, Terminal, AlertTriangle, BookOpen } from 'lucide-react';
+import { ShieldCheck, Flag, Lightbulb, Terminal, AlertTriangle, BookOpen, Users, Github } from 'lucide-react';
 
 export const RulesView: React.FC = () => {
   return (
@@ -55,6 +55,34 @@ export const RulesView: React.FC = () => {
           <p className="text-xs text-slate-400 leading-relaxed">
             Once you capture a challenge flag, its complete technical writeup and root-cause analysis unlock automatically in the challenge modal for maximum learning and debriefing.
           </p>
+        </div>
+
+        <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+          <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs uppercase tracking-wider">
+            <Users className="w-4 h-4 text-indigo-400" />
+            <span>05. Squads & Solves Aggregation</span>
+          </div>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Join or establish a CTF squad via the "Squads" tab. All members' uniquely solved challenges merge into an aggregated squad score, competing collectively on the live leaderboard.
+          </p>
+        </div>
+
+        <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+          <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs uppercase tracking-wider">
+            <Github className="w-4 h-4 text-slate-100" />
+            <span>06. Open Source Repository</span>
+          </div>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Explore the project codebase, contribute new challenges, and view the latest release on GitHub:
+          </p>
+          <a
+            href="https://github.com/CindyL789/cyber-strike-ctf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-mono text-cyan-400 hover:text-cyan-300 underline break-all inline-flex items-center gap-1.5"
+          >
+            <span>github.com/CindyL789/cyber-strike-ctf</span>
+          </a>
         </div>
       </div>
     </div>
