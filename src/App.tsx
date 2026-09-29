@@ -29,6 +29,8 @@ import { AuthModal } from './components/AuthModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { TeamHubView } from './components/TeamHubView';
 import { DailyOpBanner } from './components/DailyOpBanner';
+import { TokenStoreModal } from './components/TokenStoreModal';
+import { Top5PodiumModal } from './components/Top5PodiumModal';
 import { sound } from './utils/audio';
 
 // Services
@@ -41,6 +43,7 @@ import {
 } from './services/challengeService';
 import { subscribeToScoreboard } from './services/scoreboardService';
 import { ensureDailyChallengePublished, getDailyOpInfo } from './services/dailyChallengeService';
+import { spendTokensForHint } from './services/tokenService';
 
 export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -62,6 +65,9 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [bannerNotice, setBannerNotice] = useState<string | null>(null);
   const [isDailyFilterActive, setIsDailyFilterActive] = useState(false);
+  const [isTokenStoreOpen, setIsTokenStoreOpen] = useState(false);
+  const [isTop5PodiumOpen, setIsTop5PodiumOpen] = useState(false);
+  const [guestTokens, setGuestTokens] = useState<number>(250);
 
   // 1. Subscribe to Firebase Auth and User Profile
   useEffect(() => {
@@ -210,6 +216,36 @@ export default function App() {
     }
   };
 
+  const handleUnlockHintWithTokens = (challengeId: string, hintId: string, tokenCost: number) => {
+    if (userProfile) {
+      spendTokensForHint(userProfile, hintId, tokenCost)
+        .then(res => {
+          sound.playHint();
+          setBannerNotice(`Hint unlocked via ${tokenCost} Cyber Credits (0 score penalty).`);
+          setTimeout(() => setBannerNotice(null), 3000);
+        })
+        .catch(err => {
+          sound.playError();
+          setBannerNotice((err as Error).message || 'Failed to unlock hint with credits.');
+          setTimeout(() => setBannerNotice(null), 3500);
+        });
+    } else {
+      if (guestTokens < tokenCost) {
+        sound.playError();
+        setBannerNotice(`Insufficient credits. You have ${guestTokens} credits. Register or get more tokens!`);
+        setTimeout(() => setBannerNotice(null), 3500);
+        return;
+      }
+      if (!guestUnlockedHints.includes(hintId)) {
+        setGuestTokens(prev => Math.max(0, prev - tokenCost));
+        setGuestUnlockedHints(prev => [...prev, hintId]);
+        sound.playHint();
+        setBannerNotice(`Hint unlocked via ${tokenCost} Cyber Credits (0 score penalty).`);
+        setTimeout(() => setBannerNotice(null), 3000);
+      }
+    }
+  };
+
   const handleToggleSound = () => {
     const next = !soundEnabled;
     setSoundEnabled(next);
@@ -260,6 +296,8 @@ export default function App() {
         onToggleSound={handleToggleSound}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
+        onOpenTokenStore={() => setIsTokenStoreOpen(true)}
+        onOpenTop5Podium={() => setIsTop5PodiumOpen(true)}
       />
 
       {/* Temporary Alert Banner */}
@@ -549,7 +587,13 @@ export default function App() {
         )}
 
         {/* Navigation Tab: SCOREBOARD */}
-        {currentTab === 'scoreboard' && <LeaderboardView teams={teams} />}
+        {currentTab === 'scoreboard' && (
+          <LeaderboardView
+            teams={teams}
+            userProfile={userProfile}
+            onOpenTop5Podium={() => setIsTop5PodiumOpen(true)}
+          />
+        )}
 
         {/* Navigation Tab: SQUADS / TEAMS */}
         {currentTab === 'teams' && (
@@ -583,9 +627,12 @@ export default function App() {
           challenge={activeChallenge}
           isSolved={solvedIds.includes(activeChallenge.id)}
           unlockedHints={unlockedHints}
+          userTokens={userProfile ? (userProfile.tokens ?? 250) : guestTokens}
           onClose={() => setActiveChallenge(null)}
           onSubmitFlag={handleFlagSubmission}
           onUnlockHint={handleUnlockHint}
+          onUnlockHintWithTokens={handleUnlockHintWithTokens}
+          onOpenTokenStore={() => setIsTokenStoreOpen(true)}
         />
       )}
 
@@ -593,6 +640,38 @@ export default function App() {
       <CyberWorkbench
         isOpen={isWorkbenchOpen}
         onClose={() => setIsWorkbenchOpen(false)}
+      />
+
+      {/* Cyber Credits Armory & Exchange Modal */}
+      <TokenStoreModal
+        isOpen={isTokenStoreOpen}
+        onClose={() => setIsTokenStoreOpen(false)}
+        userProfile={userProfile}
+        onOpenAuth={() => {
+          setIsTokenStoreOpen(false);
+          setIsAuthModalOpen(true);
+        }}
+        onSuccessNotice={msg => {
+          setBannerNotice(msg);
+          setTimeout(() => setBannerNotice(null), 5000);
+        }}
+      />
+
+      {/* Season Top 5 Championship Bounty & Rewards Modal */}
+      <Top5PodiumModal
+        isOpen={isTop5PodiumOpen}
+        onClose={() => setIsTop5PodiumOpen(false)}
+        userProfile={userProfile}
+        userRank={userRank}
+        teamsLeaderboard={teams}
+        onOpenAuth={() => {
+          setIsTop5PodiumOpen(false);
+          setIsAuthModalOpen(true);
+        }}
+        onSuccessNotice={msg => {
+          setBannerNotice(msg);
+          setTimeout(() => setBannerNotice(null), 5000);
+        }}
       />
 
       {/* User Registration & Login Modal */}

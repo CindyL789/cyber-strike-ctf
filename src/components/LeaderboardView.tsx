@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Trophy, Medal, Users, User, Sparkles, Activity, Shield } from 'lucide-react';
-import { TeamScore } from '../types/ctf';
+import { Trophy, Medal, Users, User, Sparkles, Activity, Shield, Crown, Coins, ArrowRight } from 'lucide-react';
+import { TeamScore, UserProfile } from '../types/ctf';
+import { TOP_5_REWARDS } from '../services/tokenService';
 import { sound } from '../utils/audio';
 
 interface Props {
   teams: TeamScore[];
+  userProfile?: UserProfile | null;
+  onOpenTop5Podium?: () => void;
 }
 
-export const LeaderboardView: React.FC<Props> = ({ teams }) => {
+export const LeaderboardView: React.FC<Props> = ({ teams, userProfile, onOpenTop5Podium }) => {
   const [filterType, setFilterType] = useState<'all' | 'teams' | 'solo'>('all');
 
   // Filter teams based on selected filter
@@ -21,6 +24,40 @@ export const LeaderboardView: React.FC<Props> = ({ teams }) => {
 
   return (
     <div className="space-y-6">
+      {/* Top 5 Season Championship Bounty Banner */}
+      <div className="relative overflow-hidden p-5 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-slate-900 to-indigo-950/40 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 shadow-lg">
+            <Crown className="w-6 h-6 text-amber-400" />
+          </div>
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-base font-black text-white tracking-tight">Season Top 5 Championship Bounty</span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                13,000 CREDITS POOL
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Maintain a Top 5 standing at competition close to claim up to 5,000 Cyber Credits, exclusive title badges, and Hall of Fame honors.
+            </p>
+          </div>
+        </div>
+
+        {onOpenTop5Podium && (
+          <button
+            onClick={() => {
+              sound.playClick();
+              onOpenTop5Podium();
+            }}
+            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all shadow-lg shrink-0 whitespace-nowrap"
+          >
+            <Trophy className="w-3.5 h-3.5 fill-slate-950" />
+            <span>Top 5 Prize Tiers & Claim</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
       {/* Top Podium summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {sortedTeams.slice(0, 3).map((team, idx) => {
@@ -193,6 +230,12 @@ export const LeaderboardView: React.FC<Props> = ({ teams }) => {
                                 </span>
                               )}
                               <span className="font-bold">{team.name}</span>
+                              {rank <= 5 && (
+                                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center gap-1 shrink-0">
+                                  <span>{TOP_5_REWARDS[rank - 1]?.badge}</span>
+                                  <span className="hidden lg:inline text-[9px] text-amber-400/90">{TOP_5_REWARDS[rank - 1]?.title}</span>
+                                </span>
+                              )}
                               {isUser && (
                                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                                   YOU

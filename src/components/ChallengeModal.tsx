@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Flag, CheckCircle2, AlertTriangle, Lightbulb, BookOpen, Terminal, Shield, ArrowRight } from 'lucide-react';
+import { X, Flag, CheckCircle2, AlertTriangle, Lightbulb, BookOpen, Terminal, Shield, ArrowRight, Coins, Sparkles } from 'lucide-react';
 import { Challenge } from '../types/ctf';
 import { sound } from '../utils/audio';
 
@@ -29,18 +29,24 @@ interface Props {
   challenge: Challenge;
   isSolved: boolean;
   unlockedHints: string[];
+  userTokens?: number;
   onClose: () => void;
   onSubmitFlag: (challengeId: string, flag: string) => boolean;
   onUnlockHint: (challengeId: string, hintId: string, cost: number) => void;
+  onUnlockHintWithTokens?: (challengeId: string, hintId: string, tokenCost: number) => void;
+  onOpenTokenStore?: () => void;
 }
 
 export const ChallengeModal: React.FC<Props> = ({
   challenge,
   isSolved,
   unlockedHints,
+  userTokens = 0,
   onClose,
   onSubmitFlag,
-  onUnlockHint
+  onUnlockHint,
+  onUnlockHintWithTokens,
+  onOpenTokenStore
 }) => {
   const [activeTab, setActiveTab] = useState<'sandbox' | 'brief' | 'hints' | 'writeup'>('sandbox');
   const [flagInput, setFlagInput] = useState('');
@@ -254,41 +260,103 @@ export const ChallengeModal: React.FC<Props> = ({
           )}
 
           {activeTab === 'hints' && (
-            <div className="space-y-3">
-              {challenge.hints.map((hint, idx) => {
-                const isUnlocked = unlockedHints.includes(hint.id);
-                return (
-                  <div
-                    key={hint.id}
-                    className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-2 text-xs"
+            <div className="space-y-4">
+              {/* Token balance status bar */}
+              <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                <div className="flex items-center gap-2">
+                  <Coins className="w-4 h-4 text-amber-400" />
+                  <span className="text-slate-400">Your Cyber Credits:</span>
+                  <span className="font-bold text-amber-400 tabular-nums">{userTokens.toLocaleString()} Credits</span>
+                </div>
+                {onOpenTokenStore && (
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      onOpenTokenStore();
+                    }}
+                    className="text-[11px] text-amber-300 hover:text-amber-200 underline font-semibold flex items-center gap-1"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-300">Hint {idx + 1}</span>
+                    <span>+ Get More Tokens</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {challenge.hints.map((hint, idx) => {
+                  const isUnlocked = unlockedHints.includes(hint.id);
+                  const tokenCost = hint.cost * 2;
+                  const canAffordTokens = userTokens >= tokenCost;
+
+                  return (
+                    <div
+                      key={hint.id}
+                      className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-2.5 text-xs"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <span className="font-semibold text-slate-300">Hint {idx + 1}</span>
+                        {isUnlocked ? (
+                          <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Unlocked & Available</span>
+                          </span>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Option 1: Unlock with Cyber Credits (0 score penalty) */}
+                            {onUnlockHintWithTokens && (
+                              <button
+                                onClick={() => {
+                                  if (!canAffordTokens && onOpenTokenStore) {
+                                    sound.playClick();
+                                    onOpenTokenStore();
+                                  } else {
+                                    sound.playHint();
+                                    onUnlockHintWithTokens(challenge.id, hint.id, tokenCost);
+                                  }
+                                }}
+                                className={`px-3 py-1.5 rounded font-mono font-bold flex items-center gap-1.5 transition-all ${
+                                  canAffordTokens
+                                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-sm'
+                                    : 'bg-amber-950/60 border border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
+                                }`}
+                                title="Unlock hint without losing points on the public scoreboard"
+                              >
+                                <Coins className="w-3.5 h-3.5" />
+                                <span>
+                                  {canAffordTokens
+                                    ? `Unlock with ${tokenCost} Credits (0 Score Penalty)`
+                                    : `Need ${tokenCost} Credits (+Get Tokens)`}
+                                </span>
+                              </button>
+                            )}
+
+                            {/* Option 2: Unlock with Score Penalty */}
+                            <button
+                              onClick={() => {
+                                sound.playHint();
+                                onUnlockHint(challenge.id, hint.id, hint.cost);
+                              }}
+                              className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 rounded font-medium flex items-center gap-1 transition-colors text-[11px]"
+                              title="Deducts points directly from your rank score"
+                            >
+                              <Lightbulb className="w-3 h-3 text-slate-500" />
+                              <span>Spend -{hint.cost} Score pts</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       {isUnlocked ? (
-                        <span className="text-emerald-400 font-medium">Unlocked</span>
+                        <p className="text-slate-300 font-mono text-xs leading-relaxed pt-1 bg-slate-900/60 p-2.5 rounded border border-slate-800">
+                          {hint.text}
+                        </p>
                       ) : (
-                        <button
-                          onClick={() => {
-                            sound.playHint();
-                            onUnlockHint(challenge.id, hint.id, hint.cost);
-                          }}
-                          className="px-3 py-1 bg-amber-600/90 hover:bg-amber-500 text-white rounded font-medium flex items-center gap-1 transition-colors"
-                        >
-                          <Lightbulb className="w-3 h-3" />
-                          <span>Unlock Hint (-{hint.cost} pts)</span>
-                        </button>
+                        <p className="text-slate-500 italic">
+                          Hint is locked. Unlock using Cyber Credits to preserve your score, or deduct {hint.cost} score points.
+                        </p>
                       )}
                     </div>
-                    {isUnlocked ? (
-                      <p className="text-slate-300 font-mono text-xs leading-relaxed pt-1 bg-slate-900/60 p-2.5 rounded border border-slate-800">
-                        {hint.text}
-                      </p>
-                    ) : (
-                      <p className="text-slate-500 italic">Hint is currently locked. Spend points to reveal guidance.</p>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
 

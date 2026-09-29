@@ -60,6 +60,7 @@ export async function registerPlayer(
       username: username,
       email: user.email || emailToUse,
       score: 0,
+      tokens: 250,
       solvesCount: 0,
       solvedChallengeIds: [],
       unlockedHintIds: [],
@@ -116,7 +117,8 @@ export async function loginPlayer(identifier: string, passwordInput: string): Pr
     const snap = await getDoc(userDocRef);
 
     if (snap.exists()) {
-      return snap.data() as UserProfile;
+      const data = snap.data() as UserProfile;
+      return { ...data, tokens: data.tokens ?? 250 };
     } else {
       // Re-create profile if missing
       const username = user.displayName || identifier.split('@')[0];
@@ -127,6 +129,7 @@ export async function loginPlayer(identifier: string, passwordInput: string): Pr
         username,
         email: user.email || emailToUse,
         score: 0,
+        tokens: 250,
         solvesCount: 0,
         solvedChallengeIds: [],
         unlockedHintIds: [],
@@ -162,7 +165,8 @@ export async function loginWithGoogle(): Promise<UserProfile> {
     const snap = await getDoc(userDocRef);
 
     if (snap.exists()) {
-      return snap.data() as UserProfile;
+      const data = snap.data() as UserProfile;
+      return { ...data, tokens: data.tokens ?? 250 };
     } else {
       const username = user.displayName?.replace(/\s+/g, '_') || user.email?.split('@')[0] || 'Operator';
       const role = getRoleForUser(user.email);
@@ -172,6 +176,7 @@ export async function loginWithGoogle(): Promise<UserProfile> {
         username,
         email: user.email || '',
         score: 0,
+        tokens: 250,
         solvesCount: 0,
         solvedChallengeIds: [],
         unlockedHintIds: [],
@@ -227,7 +232,8 @@ export function subscribeToAuthProfile(
       docRef,
       snap => {
         if (snap.exists()) {
-          onProfile(snap.data() as UserProfile);
+          const data = snap.data() as UserProfile;
+          onProfile({ ...data, tokens: data.tokens ?? 250 });
         } else {
           // Default profile if not yet written
           const username = user.displayName || user.email?.split('@')[0] || 'GuestOperator';
@@ -238,6 +244,7 @@ export function subscribeToAuthProfile(
             username,
             email: user.email || '',
             score: 0,
+            tokens: 250,
             solvesCount: 0,
             solvedChallengeIds: [],
             unlockedHintIds: [],

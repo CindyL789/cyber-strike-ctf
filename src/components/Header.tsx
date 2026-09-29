@@ -10,7 +10,9 @@ import {
   ShieldAlert,
   LogIn,
   LogOut,
-  Github
+  Github,
+  Coins,
+  Crown
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { UserProfile } from '../types/ctf';
@@ -26,6 +28,8 @@ interface Props {
   onToggleSound: () => void;
   onOpenAuth: () => void;
   onLogout: () => void;
+  onOpenTokenStore: () => void;
+  onOpenTop5Podium: () => void;
 }
 
 export const Header: React.FC<Props> = ({
@@ -38,7 +42,9 @@ export const Header: React.FC<Props> = ({
   soundEnabled,
   onToggleSound,
   onOpenAuth,
-  onLogout
+  onLogout,
+  onOpenTokenStore,
+  onOpenTop5Podium
 }) => {
   const [quickFlag, setQuickFlag] = useState('');
 
@@ -167,15 +173,45 @@ export const Header: React.FC<Props> = ({
         </nav>
 
         {/* Zone 3: Actions & User Info */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Top 5 Season Rewards Button */}
+          <button
+            onClick={() => {
+              sound.playClick();
+              onOpenTop5Podium();
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5 text-xs font-mono font-bold transition-all shadow-sm"
+            title="Season Top 5 Championship Bounty Pool"
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Top 5 Rewards</span>
+            {userRank >= 1 && userRank <= 5 && !userProfile?.claimedTop5Reward && (
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            )}
+          </button>
+
+          {/* Cyber Credits Armory Button */}
+          <button
+            onClick={() => {
+              sound.playClick();
+              onOpenTokenStore();
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-800 hover:border-amber-500/40 flex items-center gap-1.5 text-xs font-mono font-bold transition-all shadow-inner"
+            title="Open Cyber Credits Armory (Buy & Earn Tokens)"
+          >
+            <Coins className="w-3.5 h-3.5 text-amber-400" />
+            <span className="tabular-nums">{(userProfile?.tokens ?? 250).toLocaleString()}</span>
+            <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">Cr</span>
+          </button>
+
           {/* Quick flag submission form */}
-          <form onSubmit={handleSubmit} className="hidden lg:flex items-center relative">
+          <form onSubmit={handleSubmit} className="hidden xl:flex items-center relative">
             <input
               type="text"
               value={quickFlag}
               onChange={e => setQuickFlag(e.target.value)}
               placeholder="Quick flag{...}"
-              className="w-44 pl-7 pr-3 py-1.5 bg-slate-900 border border-slate-700/80 rounded-md text-xs font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:w-56 transition-all"
+              className="w-40 pl-7 pr-3 py-1.5 bg-slate-900 border border-slate-700/80 rounded-md text-xs font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:w-52 transition-all"
             />
             <Flag className="w-3.5 h-3.5 text-emerald-400 absolute left-2 top-2 pointer-events-none" />
           </form>
@@ -225,6 +261,12 @@ export const Header: React.FC<Props> = ({
               <div className="flex items-center gap-2.5">
                 <div className="text-right hidden sm:block">
                   <div className="text-xs font-semibold text-slate-200 font-mono flex items-center justify-end gap-1.5">
+                    {userProfile.badgeTitle && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-0.5">
+                        <Crown className="w-2.5 h-2.5" />
+                        {userProfile.badgeTitle}
+                      </span>
+                    )}
                     {userProfile.teamTag && (
                       <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
                         [{userProfile.teamTag}]

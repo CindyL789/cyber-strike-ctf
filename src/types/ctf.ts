@@ -37,6 +37,10 @@ export interface UserProfile {
   solvesCount: number;
   solvedChallengeIds: string[];
   unlockedHintIds: string[];
+  tokens?: number;
+  claimedTop5Reward?: boolean;
+  badgeTitle?: string;
+  lastDailyTokenClaimDate?: string;
   categoryBreakdown: Record<Category, number>;
   role: UserRole;
   teamId?: string | null;
@@ -107,4 +111,27 @@ export interface ActivityEvent {
   isFirstBlood?: boolean;
   isUser?: boolean;
   userId?: string;
+}
+
+export interface TokenPackage {
+  id: string;
+  name: string;
+  tokens: number;
+  bonusTokens: number;
+  priceUsd: number;
+  popular?: boolean;
+  tier: 'Recon' | 'Tactical' | 'BlackHat' | 'Syndicate';
+  badge: string;
+  perks: string[];
+}
+
+export interface Top5RewardTier {
+  rank: number;
+  title: string;
+  tokensReward: number;
+  badge: string;
+  frameColor: string;
+  badgeColor: string;
+  summary: string;
+  perks: string[];
 }

@@ -203,6 +203,9 @@ export async function submitFlag(
   };
 
   const isFirstBlood = challenge.solvesCount === 0;
+  const tokenReward = isDailyOp ? 150 : 50;
+  const currentTokens = user.tokens ?? 250;
+  const newTokens = currentTokens + tokenReward;
 
   try {
     // 1. Update user profile in Firestore
@@ -210,6 +213,7 @@ export async function submitFlag(
     const profileUpdate: Record<string, unknown> = {
       solvedChallengeIds: newSolved,
       score: newScore,
+      tokens: newTokens,
       solvesCount: newSolvesCount,
       categoryBreakdown: newBreakdown,
       lastSolveTime: 'Just now',
