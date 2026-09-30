@@ -1,8 +1,8 @@
 {
   "name": "CyberStrike CTF Arena",
-  "description": "Real-time competitive cybersecurity capture the flag platform featuring authentic web exploitation, cryptography, reverse engineering, forensics, and interactive shell challenges.",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
+  "description": "Hardcore competitive Cybersecurity CTF arena featuring advanced Web, Binary Exploitation, Reverse Engineering, Cryptography, and Memory Forensics challenges with real-time scoreboards, interactive sandboxes, and season championship bounties.",
+  "permissions": [],
+  "capabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
 }

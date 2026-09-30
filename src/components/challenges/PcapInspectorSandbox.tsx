@@ -1,275 +1,173 @@
-import React, { useState, useMemo } from 'react';
-import { Network, Filter, ArrowRight, CheckCircle2, Copy, FileText, Search } from 'lucide-react';
+import React, { useState } from 'react';
+import { Terminal, Network, Search, CheckCircle2, Filter, Copy, Check } from 'lucide-react';
 import { sound } from '../../utils/audio';
-import { fromBase64 } from '../../utils/cryptoTools';
 
 interface Props {
-  onFlagFound?: (flag: string) => void;
+  onFlagFound: (flag: string) => void;
 }
 
-interface Packet {
-  no: number;
-  time: string;
-  source: string;
-  destination: string;
-  protocol: 'TCP' | 'HTTP' | 'DNS' | 'TLS';
-  length: number;
-  info: string;
-  streamId?: number;
-  payload?: string;
-}
-
-const PACKETS: Packet[] = [
-  { no: 1, time: '0.000000', source: '192.168.1.105', destination: '8.8.8.8', protocol: 'DNS', length: 78, info: 'Standard query 0x1a2b A sync.internal-corp.net' },
-  { no: 2, time: '0.012431', source: '8.8.8.8', destination: '192.168.1.105', protocol: 'DNS', length: 94, info: 'Standard query response 0x1a2b A 45.33.32.156' },
-  { no: 3, time: '0.045112', source: '192.168.1.105', destination: '45.33.32.156', protocol: 'TCP', length: 66, info: '54210 → 80 [SYN] Seq=0 Win=64240 Len=0', streamId: 0 },
-  { no: 4, time: '0.078219', source: '45.33.32.156', destination: '192.168.1.105', protocol: 'TCP', length: 66, info: '80 → 54210 [SYN, ACK] Seq=0 Ack=1 Win=65160', streamId: 0 },
-  { no: 5, time: '0.078301', source: '192.168.1.105', destination: '45.33.32.156', protocol: 'TCP', length: 54, info: '54210 → 80 [ACK] Seq=1 Ack=1 Win=64240', streamId: 0 },
-  { no: 6, time: '0.082104', source: '192.168.1.105', destination: '45.33.32.156', protocol: 'HTTP', length: 245, info: 'GET /status HTTP/1.1', streamId: 0, payload: 'GET /status HTTP/1.1\r\nHost: sync.internal-corp.net\r\nUser-Agent: Mozilla/5.0\r\n\r\n' },
-  { no: 7, time: '0.114201', source: '45.33.32.156', destination: '192.168.1.105', protocol: 'HTTP', length: 182, info: 'HTTP/1.1 200 OK (text/plain)', streamId: 0, payload: 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 15\r\n\r\nAgent connected\n' },
-  { no: 8, time: '0.189400', source: '192.168.1.105', destination: '10.0.0.1', protocol: 'DNS', length: 82, info: 'Standard query 0x3c9f A updates.gateway.local' },
-  { no: 9, time: '0.245102', source: '192.168.1.105', destination: '45.33.32.156', protocol: 'TCP', length: 66, info: '54212 → 80 [SYN] Seq=0 Win=64240', streamId: 1 },
-  { no: 10, time: '0.278912', source: '45.33.32.156', destination: '192.168.1.105', protocol: 'TCP', length: 66, info: '80 → 54212 [SYN, ACK] Seq=0 Ack=1', streamId: 1 },
-  { no: 11, time: '0.312040', source: '192.168.1.105', destination: '45.33.32.156', protocol: 'HTTP', length: 612, info: 'POST /sync/report HTTP/1.1 (application/x-www-form-urlencoded)', streamId: 1, payload: 'POST /sync/report HTTP/1.1\r\nHost: sync.internal-corp.net\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 128\r\n\r\nsession_id=990184&action=exfiltrate_vault&upload_blob=ZmxhZ3twYzRwX3A0Y2szdF9zdHIzNG1faHV0dHBfM3hmMWxfNjE3fQ%3D%3D' },
-  { no: 12, time: '0.354109', source: '45.33.32.156', destination: '192.168.1.105', protocol: 'HTTP', length: 156, info: 'HTTP/1.1 202 Accepted', streamId: 1, payload: 'HTTP/1.1 202 Accepted\r\nContent-Length: 22\r\n\r\nPayload saved to disk.\n' }
-];
-
-const FLAG = 'flag{pc4p_p4ck3t_str34m_huttp_3xf1l_617}';
+const SECRET_FLAG = 'flag{pc4p_p4ck3t_str34m_huttp_3xf1l_617}';
 
 export const PcapInspectorSandbox: React.FC<Props> = ({ onFlagFound }) => {
-  const [filterText, setFilterText] = useState('http');
-  const [selectedPacket, setSelectedPacket] = useState<Packet | null>(PACKETS[10]); // default select POST packet
-  const [showStreamModal, setShowStreamModal] = useState(false);
-  const [decodedPayload, setDecodedPayload] = useState<string | null>(null);
+  const [filterStr, setFilterStr] = useState<string>('');
+  const [selectedStream, setSelectedStream] = useState<number | null>(null);
+  const [submittedFlag, setSubmittedFlag] = useState<string>('');
+  const [copied, setCopied] = useState<boolean>(false);
+  const [verifyNotice, setVerifyNotice] = useState<string>('');
 
-  const filteredPackets = useMemo(() => {
-    if (!filterText.trim()) return PACKETS;
-    const q = filterText.toLowerCase().trim();
-    return PACKETS.filter(p =>
-      p.protocol.toLowerCase().includes(q) ||
-      p.info.toLowerCase().includes(q) ||
-      p.source.includes(q) ||
-      p.destination.includes(q)
+  const packets = [
+    { no: 1, time: '0.000', src: '10.0.0.12', dst: '1.1.1.1', proto: 'DNS', info: 'Standard query 0x12a A exfil.remote-telemetry.org' },
+    { no: 2, time: '0.015', src: '1.1.1.1', dst: '10.0.0.12', proto: 'DNS', info: 'Standard query response 0x12a A 198.51.100.22' },
+    { no: 3, time: '0.021', src: '10.0.0.12', dst: '10.0.0.1', proto: 'ARP', info: 'Who has 10.0.0.1? Tell 10.0.0.12' },
+    { no: 7, time: '0.045', src: '10.0.0.12', dst: '198.51.100.22', proto: 'TCP', info: '49152 → 80 [SYN] Seq=0 Win=64240' },
+    { no: 8, time: '0.046', src: '198.51.100.22', dst: '10.0.0.12', proto: 'TCP', info: '80 → 49152 [SYN, ACK] Seq=0 Ack=1' },
+    { no: 9, time: '0.047', src: '10.0.0.12', dst: '198.51.100.22', proto: 'TCP', info: '49152 → 80 [ACK] Seq=1 Ack=1' },
+    { no: 14, time: '0.089', src: '10.0.0.12', dst: '10.0.0.50', proto: 'SMB2', info: 'Tree Connect Request Tree: \\\\STORAGE\\IPC$' },
+    { no: 18, time: '0.120', src: '10.0.0.12', dst: '198.51.100.22', proto: 'HTTP', info: 'POST /sync/report HTTP/1.1 (multipart/form-data)' },
+    { no: 24, time: '0.190', src: '198.51.100.22', dst: '10.0.0.12', proto: 'HTTP', info: 'HTTP/1.1 200 OK (application/json)' }
+  ];
+
+  const filteredPackets = packets.filter(p => {
+    if (!filterStr.trim()) return true;
+    const f = filterStr.trim().toLowerCase();
+    return (
+      p.proto.toLowerCase().includes(f) ||
+      p.info.toLowerCase().includes(f) ||
+      p.src.toLowerCase().includes(f) ||
+      p.dst.toLowerCase().includes(f)
     );
-  }, [filterText]);
+  });
 
-  const handleSelectPacket = (packet: Packet) => {
+  const handleCopyBlob = () => {
     sound.playClick();
-    setSelectedPacket(packet);
+    navigator.clipboard.writeText('ZmxhZ3twYzRwX3A0Y2szdF9zdHIzNG1faHV0dHBfM3hmMWxfNjE3fQ==');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDecodeExfil = () => {
+  const handleVerify = () => {
     sound.playClick();
-    const base64Str = 'ZmxhZ3twYzRwX3A0Y2szdF9zdHIzNG1faHV0dHBfM3hmMWxfNjE3fQ==';
-    const result = fromBase64(base64Str);
-    setDecodedPayload(result);
-    if (result === FLAG) {
+    if (submittedFlag.trim() === SECRET_FLAG) {
       sound.playSuccess();
-      if (onFlagFound) onFlagFound(FLAG);
+      setVerifyNotice(`SUCCESS: Exfiltrated flag recovered! Points ready to award.`);
+      onFlagFound(SECRET_FLAG);
+    } else {
+      sound.playError();
+      setVerifyNotice('INCORRECT: Flag does not match the decoded stream.');
     }
   };
 
   return (
-    <div className="space-y-4 text-sm">
-      <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-lg flex items-start gap-3">
-        <Network className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <div className="font-semibold text-slate-200">Wireshark Protocol Analyzer: dump_094.pcap</div>
-          <div className="text-xs text-slate-400">
-            Total Packets: 12 · Target Anomalies: Outbound exfiltration streams
-          </div>
-        </div>
+    <div className="space-y-4 font-mono text-xs">
+      {/* Filter Toolbar */}
+      <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl flex items-center gap-2">
+        <Filter className="w-4 h-4 text-emerald-400" />
+        <span className="text-slate-400 text-xs">Protocol Filter:</span>
+        <input
+          type="text"
+          value={filterStr}
+          onChange={e => setFilterStr(e.target.value)}
+          placeholder="e.g. HTTP, POST, DNS..."
+          className="flex-1 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-slate-200 text-xs focus:outline-none focus:border-emerald-500"
+        />
+        {filterStr && (
+          <button
+            onClick={() => setFilterStr('')}
+            className="px-2 py-1 text-slate-400 hover:text-white text-xs"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 p-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs">
-        <div className="flex items-center gap-1.5 text-slate-400">
-          <Filter className="w-3.5 h-3.5 text-sky-400" />
-          <span>Display Filter:</span>
+      {/* Packet List */}
+      <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+        <div className="p-2.5 bg-slate-900 border-b border-slate-800 text-[11px] font-bold text-slate-400 flex items-center justify-between">
+          <span>dump_094.pcap Packet List</span>
+          <span>{filteredPackets.length} frames visible</span>
         </div>
-        <div className="flex-1 relative min-w-[200px]">
-          <input
-            type="text"
-            value={filterText}
-            onChange={e => setFilterText(e.target.value)}
-            placeholder="e.g. http, tcp, dns..."
-            className="w-full pl-7 pr-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-slate-200 font-mono text-xs focus:outline-none focus:border-sky-500"
-          />
-          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2 top-2" />
-        </div>
-        <div className="flex items-center gap-1">
-          {['all', 'http', 'dns', 'tcp'].map(proto => (
-            <button
-              key={proto}
+        <div className="divide-y divide-slate-800 max-h-56 overflow-y-auto">
+          {filteredPackets.map(pkt => (
+            <div
+              key={pkt.no}
               onClick={() => {
-                setFilterText(proto === 'all' ? '' : proto);
                 sound.playClick();
+                setSelectedStream(pkt.no === 18 ? 3 : null);
               }}
-              className={`px-2.5 py-1 rounded font-mono text-xs uppercase ${
-                (proto === 'all' && filterText === '') || filterText.toLowerCase() === proto
-                  ? 'bg-sky-600 text-white'
-                  : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+              className={`p-2.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-900/60 ${
+                selectedStream === 3 && pkt.no === 18 ? 'bg-indigo-950/40 border-l-2 border-indigo-400' : ''
               }`}
             >
-              {proto}
-            </button>
+              <div className="flex items-center gap-3">
+                <span className="text-slate-500 w-6">#{pkt.no}</span>
+                <span className="text-emerald-400 w-16 font-bold">{pkt.proto}</span>
+                <span className="text-slate-300">{pkt.src} → {pkt.dst}</span>
+              </div>
+              <span className="text-slate-400 text-[11px] truncate max-w-sm">{pkt.info}</span>
+            </div>
           ))}
         </div>
       </div>
 
-      {/* Packet Table */}
-      <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-950">
-        <div className="max-h-56 overflow-y-auto">
-          <table className="w-full text-left font-mono text-xs border-collapse">
-            <thead className="bg-slate-900/90 text-slate-400 sticky top-0 border-b border-slate-800 text-[11px]">
-              <tr>
-                <th className="py-2 px-3 w-12">No.</th>
-                <th className="py-2 px-3 w-20">Time</th>
-                <th className="py-2 px-3 w-28">Source</th>
-                <th className="py-2 px-3 w-28">Destination</th>
-                <th className="py-2 px-3 w-16">Proto</th>
-                <th className="py-2 px-3 w-14">Len</th>
-                <th className="py-2 px-3">Info</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-900">
-              {filteredPackets.map(p => {
-                const isSelected = selectedPacket?.no === p.no;
-                const isHttp = p.protocol === 'HTTP';
-                return (
-                  <tr
-                    key={p.no}
-                    onClick={() => handleSelectPacket(p)}
-                    className={`cursor-pointer transition-colors ${
-                      isSelected
-                        ? 'bg-sky-950/80 text-sky-200 font-medium'
-                        : isHttp
-                        ? 'bg-emerald-950/20 hover:bg-slate-900 text-slate-300'
-                        : 'hover:bg-slate-900 text-slate-400'
-                    }`}
-                  >
-                    <td className="py-1.5 px-3 text-slate-500">{p.no}</td>
-                    <td className="py-1.5 px-3 text-slate-400">{p.time}</td>
-                    <td className="py-1.5 px-3 text-slate-300">{p.source}</td>
-                    <td className="py-1.5 px-3 text-slate-300">{p.destination}</td>
-                    <td className="py-1.5 px-3">
-                      <span className={`font-bold ${isHttp ? 'text-emerald-400' : 'text-sky-400'}`}>
-                        {p.protocol}
-                      </span>
-                    </td>
-                    <td className="py-1.5 px-3 text-slate-500">{p.length}</td>
-                    <td className="py-1.5 px-3 truncate max-w-xs">{p.info}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Selected Packet Inspector */}
-      {selectedPacket && (
-        <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-3">
-          <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-800">
-            <span className="font-semibold text-slate-400 uppercase tracking-wider">
-              Packet #{selectedPacket.no} Details
-            </span>
-            {selectedPacket.streamId !== undefined && (
-              <button
-                onClick={() => {
-                  setShowStreamModal(true);
-                  sound.playClick();
-                }}
-                className="px-3 py-1 bg-sky-700 hover:bg-sky-600 text-white rounded text-xs font-sans flex items-center gap-1.5 transition-colors"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Follow TCP Stream #{selectedPacket.streamId}</span>
-              </button>
-            )}
+      {/* Follow Stream Box */}
+      {selectedStream === 3 ? (
+        <div className="p-4 bg-slate-950 border border-indigo-500/40 rounded-xl space-y-3">
+          <div className="text-xs font-bold text-indigo-300 flex items-center justify-between">
+            <span>Follow TCP Stream #3 (HTTP POST Payload):</span>
+            <span className="text-[10px] text-slate-500">Port 80 Reassembly</span>
           </div>
 
-          <div className="space-y-1 font-mono text-xs text-slate-300">
-            <div>
-              <span className="text-slate-500">Ethernet II, Src: </span>02:42:c0:a8:01:69,{' '}
-              <span className="text-slate-500">Dst: </span>02:42:2d:21:20:9c
-            </div>
-            <div>
-              <span className="text-slate-500">Internet Protocol Version 4, Src: </span>
-              {selectedPacket.source}, <span className="text-slate-500">Dst: </span>
-              {selectedPacket.destination}
-            </div>
-            <div>
-              <span className="text-slate-500">Transmission Control Protocol, Stream: </span>
-              {selectedPacket.streamId ?? 'N/A'}
-            </div>
-          </div>
-
-          {selectedPacket.payload && (
-            <div className="pt-2">
-              <div className="text-xs text-slate-400 mb-1 font-mono">Payload Segment:</div>
-              <pre className="p-3 bg-slate-900 border border-slate-800 rounded font-mono text-xs text-emerald-300 break-all whitespace-pre-wrap max-h-36 overflow-y-auto">
-                {selectedPacket.payload}
-              </pre>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TCP Stream Follower Modal / Drawer */}
-      {showStreamModal && (
-        <div className="p-4 bg-slate-900 border border-sky-600/40 rounded-lg space-y-3">
-          <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-800">
-            <span className="font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
-              <FileText className="w-4 h-4" />
-              Follow TCP Stream #1 (Client ↔ Server Transcript)
-            </span>
-            <button
-              onClick={() => setShowStreamModal(false)}
-              className="text-slate-400 hover:text-slate-200 text-xs font-mono"
-            >
-              [Close]
-            </button>
-          </div>
-
-          <div className="p-3 bg-slate-950 border border-slate-800 rounded font-mono text-xs space-y-2 text-rose-300">
+          <div className="p-3 bg-slate-900 rounded border border-slate-800 text-[11px] text-slate-300 space-y-1">
             <div>POST /sync/report HTTP/1.1</div>
-            <div>Host: sync.internal-corp.net</div>
-            <div>User-Agent: StealthClient/1.0</div>
-            <div>Content-Type: application/x-www-form-urlencoded</div>
-            <div className="pt-2 text-amber-300 font-bold">
-              upload_blob=ZmxhZ3twYzRwX3A0Y2szdF9zdHIzNG1faHV0dHBfM3hmMWxfNjE3fQ%3D%3D
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 pt-1">
-            <button
-              onClick={handleDecodeExfil}
-              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-medium flex items-center gap-1.5 transition-colors font-sans"
-            >
-              <span>Decode upload_blob Base64</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {decodedPayload && (
-            <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-lg flex items-center justify-between">
-              <span className="text-emerald-400 font-semibold text-xs font-mono">
-                Decoded: {decodedPayload}
-              </span>
+            <div>Host: exfil.remote-telemetry.org</div>
+            <div>Content-Type: multipart/form-data; boundary=---------------------------974767299852498929531610575</div>
+            <div className="text-amber-300 pt-2 flex items-center justify-between">
+              <span>upload_blob=ZmxhZ3twYzRwX3A0Y2szdF9zdHIzNG1faHV0dHBfM3hmMWxfNjE3fQ==</span>
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(decodedPayload);
-                  sound.playClick();
-                }}
-                className="px-2 py-1 bg-emerald-700 hover:bg-emerald-600 text-white rounded text-[11px] font-medium flex items-center gap-1 font-sans"
+                onClick={handleCopyBlob}
+                className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white flex items-center gap-1 text-[10px]"
               >
-                <Copy className="w-3 h-3" />
-                Copy
+                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                <span>{copied ? 'Copied' : 'Copy Blob'}</span>
               </button>
             </div>
-          )}
+          </div>
+
+          <div className="text-slate-400 text-[11px]">
+            Hint: Copy the Base64 blob into the Cyber Workbench (or your local shell: <code className="text-emerald-400">echo "..." | base64 -d</code>) to decode the flag.
+          </div>
+        </div>
+      ) : (
+        <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl text-center text-slate-500 text-xs">
+          Click on an anomalous transmission in the packet table above to follow the stream.
         </div>
       )}
+
+      {/* Flag Verification */}
+      <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+        <label className="text-slate-200 font-bold text-xs">Verify Decoded Flag:</label>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={submittedFlag}
+            onChange={e => setSubmittedFlag(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleVerify()}
+            className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 text-xs focus:outline-none focus:border-emerald-500"
+            placeholder="flag{...}"
+          />
+          <button
+            onClick={handleVerify}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs"
+          >
+            Check Flag
+          </button>
+        </div>
+        {verifyNotice && (
+          <div className={`p-2.5 rounded border text-xs ${verifyNotice.startsWith('SUCCESS') ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' : 'bg-rose-950/40 border-rose-500/40 text-rose-300'}`}>
+            {verifyNotice}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

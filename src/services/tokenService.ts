@@ -1,69 +1,59 @@
-import { doc, updateDoc, collection, addDoc, increment } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase/config';
-import { UserProfile, TokenPackage, Top5RewardTier, ActivityEvent, ArmoryItem } from '../types/ctf';
+import { UserProfile, TokenPackage, Top5RewardTier, ArmoryItem } from '../types/ctf';
 
 const USERS_COLLECTION = 'users';
+const TRANSACTIONS_COLLECTION = 'transactions';
 const ACTIVITY_COLLECTION = 'activity';
 
 export const TOKEN_PACKAGES: TokenPackage[] = [
   {
-    id: 'recon-pack',
+    id: 'pack-recon',
     name: 'Reconnaissance Scout',
     tokens: 250,
     bonusTokens: 0,
     priceUsd: 4.99,
-    tier: 'Recon',
-    badge: '🛰️ Recon',
-    perks: [
-      'Unlock 5-8 Hints with 0 Score Penalty',
-      'Basic Target Recon Analysis scan',
-      'Instant cyber credit delivery'
-    ]
+    badge: 'SCOUT',
+    perks: ['250 Cyber Credits instantly', 'Unlock ~5-8 Hints penalty-free', 'Single-Target Radar Scan']
   },
   {
-    id: 'tactical-arsenal',
+    id: 'pack-tactical',
     name: 'Special Ops Tactical',
     tokens: 750,
     bonusTokens: 150,
     priceUsd: 9.99,
+    badge: 'SPECIAL OPS',
     popular: true,
-    tier: 'Tactical',
-    badge: '⚡ Tactical',
     perks: [
-      '900 Total Cyber Credits (+150 Bonus)',
-      'Unlock 15-20 Strategic Hints penalty-free',
-      'Full Target Vulnerability Diagnostics',
-      'Tactical Operator Accent Frame'
+      '900 Total Cyber Credits (150 Bonus)',
+      'Unlock up to 25 Hints with 0 score penalty',
+      'Tactical Recon Drone access'
     ]
   },
   {
-    id: 'blackhat-syndicate',
+    id: 'pack-syndicate',
     name: 'Black Hat Syndicate',
     tokens: 2200,
     bonusTokens: 500,
     priceUsd: 19.99,
-    tier: 'BlackHat',
-    badge: '💀 Syndicate',
+    badge: 'SYNDICATE',
     perks: [
-      '2,700 Total Cyber Credits (+500 Bonus)',
-      'Team Hint Sharing & Co-op Scans',
-      'Priority Cyber Workbench Diagnostics',
-      'VIP Syndicate Badge on Leaderboard'
+      '2,700 Total Cyber Credits (500 Bonus)',
+      'Unlimited zero-penalty hints for entire season',
+      'VIP Profile Insignia'
     ]
   },
   {
-    id: 'zero-day-sovereign',
+    id: 'pack-sovereign',
     name: 'Zero-Day Sovereign Vault',
     tokens: 6000,
     bonusTokens: 2000,
     priceUsd: 49.99,
-    tier: 'Syndicate',
-    badge: '👑 Sovereign',
+    badge: 'SOVEREIGN',
     perks: [
-      'Massive 8,000 Total Cyber Credits (+2,000 Bonus)',
-      'Unlimited Target Architecture Scans',
-      'Permanent Sovereign Title & Holographic Crown',
-      'Lifetime CTF Armory Privileges'
+      '8,000 Total Cyber Credits (2,000 Bonus)',
+      'Full Armory & Drone Radar permanently unlocked',
+      'Obsidian Crown VIP Frame'
     ]
   }
 ];
@@ -76,12 +66,12 @@ export const TOP_5_REWARDS: Top5RewardTier[] = [
     badge: '👑 Obsidian Crown',
     frameColor: 'border-amber-400 text-amber-300 shadow-amber-500/20 bg-amber-950/40',
     badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-    summary: 'The supreme architect of the cyber matrix. Champion of the CTF Arena.',
+    summary: 'Supreme grandmaster of binary exploitation, cryptanalysis, and reverse engineering.',
     perks: [
       '5,000 Cyber Credits instantly granted',
-      'Exclusive Obsidian Emperor Crown Insignia',
-      'Permanent Golden Holographic Leaderboard Frame',
-      'CTF Hall of Fame Induction'
+      'Obsidian Crown Prestige Title Badge',
+      'Golden Scoreboard Champion Frame',
+      'Hall of Fame Permanent Induction'
     ]
   },
   {
@@ -91,10 +81,10 @@ export const TOP_5_REWARDS: Top5RewardTier[] = [
     badge: '⚡ Crimson Skull',
     frameColor: 'border-rose-500 text-rose-300 shadow-rose-500/20 bg-rose-950/40',
     badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
-    summary: 'Master of kernel exploitation and ruthless adversary evasion.',
+    summary: 'Master kernel exploiter maintaining sustained dominance across high-value objectives.',
     perks: [
       '3,500 Cyber Credits instantly granted',
-      'Crimson Skull Vanguard Badge',
+      'Crimson Skull Insignia',
       'Ruby Leaderboard Profile Glow',
       'Silver Podium Citation'
     ]
@@ -145,174 +135,6 @@ export const TOP_5_REWARDS: Top5RewardTier[] = [
     ]
   }
 ];
-
-// Purchase Tokens & Credit User Profile
-export async function purchaseTokens(
-  user: UserProfile,
-  pkg: TokenPackage,
-  paymentMethod: string
-): Promise<{ success: boolean; newTokens: number; message: string; transactionId: string }> {
-  const totalCredited = pkg.tokens + pkg.bonusTokens;
-  const currentTokens = user.tokens ?? 250;
-  const newTokens = currentTokens + totalCredited;
-  const txId = `tx-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
-
-  try {
-    const userRef = doc(db, USERS_COLLECTION, user.uid);
-    await updateDoc(userRef, {
-      tokens: newTokens,
-      updatedAt: new Date().toISOString()
-    });
-
-    // Broadcast in live activity stream
-    const activityCol = collection(db, ACTIVITY_COLLECTION);
-    const activityEvent: Omit<ActivityEvent, 'id'> = {
-      userId: user.uid,
-      teamName: user.teamName ? `${user.username} (${user.teamName})` : user.username,
-      challengeTitle: `🛒 Acquired ${totalCredited.toLocaleString()} Cyber Credits [${pkg.name}]`,
-      category: 'Web',
-      points: 0,
-      timestamp: 'Just now',
-      isUser: true
-    };
-    await addDoc(activityCol, activityEvent);
-
-    return {
-      success: true,
-      newTokens,
-      message: `Payment authorized via ${paymentMethod}! +${totalCredited.toLocaleString()} Cyber Credits added to your account.`,
-      transactionId: txId
-    };
-  } catch (err) {
-    handleFirestoreError(err, OperationType.UPDATE, `${USERS_COLLECTION}/${user.uid}`);
-    throw err;
-  }
-}
-
-// Claim Top 5 Reward Bounty
-export async function claimTop5Reward(
-  user: UserProfile,
-  currentRank: number
-): Promise<{ success: boolean; tokensAwarded: number; newTitle: string; message: string }> {
-  if (currentRank < 1 || currentRank > 5) {
-    throw new Error('User is not currently in the Top 5 of the scoreboard.');
-  }
-
-  if (user.claimedTop5Reward) {
-    throw new Error('You have already claimed your Season Top 5 reward bounty.');
-  }
-
-  const rewardTier = TOP_5_REWARDS.find(r => r.rank === currentRank);
-  if (!rewardTier) {
-    throw new Error('Reward tier not found for this rank.');
-  }
-
-  const currentTokens = user.tokens ?? 250;
-  const newTokens = currentTokens + rewardTier.tokensReward;
-
-  try {
-    const userRef = doc(db, USERS_COLLECTION, user.uid);
-    await updateDoc(userRef, {
-      tokens: newTokens,
-      claimedTop5Reward: true,
-      badgeTitle: rewardTier.title,
-      updatedAt: new Date().toISOString()
-    });
-
-    // Broadcast podium bounty in live activity stream
-    const activityCol = collection(db, ACTIVITY_COLLECTION);
-    const activityEvent: Omit<ActivityEvent, 'id'> = {
-      userId: user.uid,
-      teamName: user.teamName ? `${user.username} (${user.teamName})` : user.username,
-      challengeTitle: `🏆 [PODIUM CLAIM] Rank #${currentRank} Crown: +${rewardTier.tokensReward} Credits & "${rewardTier.title}"!`,
-      category: 'Crypto',
-      points: 0,
-      timestamp: 'Just now',
-      isFirstBlood: true,
-      isUser: true
-    };
-    await addDoc(activityCol, activityEvent);
-
-    return {
-      success: true,
-      tokensAwarded: rewardTier.tokensReward,
-      newTitle: rewardTier.title,
-      message: `Congratulations! You claimed the Rank #${currentRank} "${rewardTier.title}" Bounty: +${rewardTier.tokensReward} Cyber Credits awarded!`
-    };
-  } catch (err) {
-    handleFirestoreError(err, OperationType.UPDATE, `${USERS_COLLECTION}/${user.uid}`);
-    throw err;
-  }
-}
-
-// Spend Tokens to Unlock Hint without point deduction penalty
-export async function spendTokensForHint(
-  user: UserProfile,
-  hintId: string,
-  tokenCost: number
-): Promise<{ success: boolean; newTokens: number; message: string }> {
-  const currentTokens = user.tokens ?? 250;
-  if (currentTokens < tokenCost) {
-    throw new Error(`Insufficient Cyber Credits. Need ${tokenCost} tokens, but you have ${currentTokens}.`);
-  }
-
-  if (user.unlockedHintIds.includes(hintId)) {
-    return { success: true, newTokens: currentTokens, message: 'Hint already unlocked.' };
-  }
-
-  const newTokens = currentTokens - tokenCost;
-  const newUnlockedHints = [...user.unlockedHintIds, hintId];
-
-  try {
-    const userRef = doc(db, USERS_COLLECTION, user.uid);
-    await updateDoc(userRef, {
-      tokens: newTokens,
-      unlockedHintIds: newUnlockedHints,
-      updatedAt: new Date().toISOString()
-    });
-
-    return {
-      success: true,
-      newTokens,
-      message: `Hint unlocked via Cyber Credits (-${tokenCost} tokens, 0 score penalty).`
-    };
-  } catch (err) {
-    handleFirestoreError(err, OperationType.UPDATE, `${USERS_COLLECTION}/${user.uid}`);
-    throw err;
-  }
-}
-
-// Daily Free Supply Drop (+50 Tokens every 24h)
-export async function claimDailyFreeTokens(
-  user: UserProfile
-): Promise<{ success: boolean; tokensAwarded: number; message: string }> {
-  const todayStr = new Date().toISOString().split('T')[0];
-  if (user.lastDailyTokenClaimDate === todayStr) {
-    throw new Error('Daily supply drop already claimed today. Returns at 00:00 UTC.');
-  }
-
-  const currentTokens = user.tokens ?? 250;
-  const bonus = 50;
-  const newTokens = currentTokens + bonus;
-
-  try {
-    const userRef = doc(db, USERS_COLLECTION, user.uid);
-    await updateDoc(userRef, {
-      tokens: newTokens,
-      lastDailyTokenClaimDate: todayStr,
-      updatedAt: new Date().toISOString()
-    });
-
-    return {
-      success: true,
-      tokensAwarded: bonus,
-      message: `Daily Supply Drop claimed! +${bonus} Cyber Credits added to your balance.`
-    };
-  } catch (err) {
-    handleFirestoreError(err, OperationType.UPDATE, `${USERS_COLLECTION}/${user.uid}`);
-    throw err;
-  }
-}
 
 export const ARMORY_ITEMS: ArmoryItem[] = [
   {
@@ -370,6 +192,160 @@ export const ARMORY_ITEMS: ArmoryItem[] = [
     effect: 'Equippable profile title badge'
   }
 ];
+
+export async function purchaseTokens(
+  user: UserProfile,
+  pkg: TokenPackage,
+  paymentMethod: string
+): Promise<{ success: boolean; newTokens: number; message: string; transactionId: string }> {
+  const totalCredited = pkg.tokens + pkg.bonusTokens;
+  const currentTokens = user.tokens ?? 250;
+  const newTokens = currentTokens + totalCredited;
+  const txId = `tx-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+
+  try {
+    const userRef = doc(db, USERS_COLLECTION, user.uid);
+    await updateDoc(userRef, {
+      tokens: newTokens,
+      updatedAt: new Date().toISOString()
+    });
+
+    await addDoc(collection(db, TRANSACTIONS_COLLECTION), {
+      txId,
+      userId: user.uid,
+      username: user.username,
+      packageId: pkg.id,
+      packageName: pkg.name,
+      tokensGranted: totalCredited,
+      amountUsd: pkg.priceUsd,
+      paymentMethod,
+      timestamp: new Date().toISOString()
+    });
+
+    return {
+      success: true,
+      newTokens,
+      message: `Authorized! Successfully credited +${totalCredited.toLocaleString()} Cyber Credits.`,
+      transactionId: txId
+    };
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `${USERS_COLLECTION}/${user.uid}`);
+    throw err;
+  }
+}
+
+export async function spendTokensForHint(
+  user: UserProfile,
+  hintId: string,
+  tokenCost: number
+): Promise<{ success: boolean; newTokens: number; message: string }> {
+  const currentTokens = user.tokens ?? 250;
+  if (currentTokens < tokenCost) {
+    throw new Error(`Insufficient Cyber Credits. Need ${tokenCost} tokens, but you have ${currentTokens}.`);
+  }
+
+  if (user.unlockedHintIds.includes(hintId)) {
+    return { success: true, newTokens: currentTokens, message: 'Hint already unlocked.' };
+  }
+
+  const newTokens = currentTokens - tokenCost;
+  const newUnlockedHints = [...user.unlockedHintIds, hintId];
+
+  try {
+    const userRef = doc(db, USERS_COLLECTION, user.uid);
+    await updateDoc(userRef, {
+      tokens: newTokens,
+      unlockedHintIds: newUnlockedHints,
+      updatedAt: new Date().toISOString()
+    });
+
+    return {
+      success: true,
+      newTokens,
+      message: `Hint unlocked via Cyber Credits (-${tokenCost} tokens, 0 score penalty).`
+    };
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `${USERS_COLLECTION}/${user.uid}`);
+    throw err;
+  }
+}
+
+export async function claimDailyFreeTokens(
+  user: UserProfile
+): Promise<{ success: boolean; tokensAwarded: number; message: string }> {
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (user.lastDailyTokenClaimDate === todayStr) {
+    throw new Error('Daily supply drop already claimed today. Returns at 00:00 UTC.');
+  }
+
+  const currentTokens = user.tokens ?? 250;
+  const bonus = 50;
+  const newTokens = currentTokens + bonus;
+
+  try {
+    const userRef = doc(db, USERS_COLLECTION, user.uid);
+    await updateDoc(userRef, {
+      tokens: newTokens,
+      lastDailyTokenClaimDate: todayStr,
+      updatedAt: new Date().toISOString()
+    });
+
+    return {
+      success: true,
+      tokensAwarded: bonus,
+      message: `Daily Supply Drop claimed! +${bonus} Cyber Credits added to your balance.`
+    };
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `${USERS_COLLECTION}/${user.uid}`);
+    throw err;
+  }
+}
+
+export async function claimTop5SeasonReward(
+  user: UserProfile,
+  rank: number
+): Promise<{ success: boolean; tokensAwarded: number; badgeGranted: string; message: string }> {
+  const tier = TOP_5_REWARDS.find(r => r.rank === rank);
+  if (!tier) {
+    throw new Error(`Invalid rank #${rank} for season top 5 bounty.`);
+  }
+
+  if (user.claimedTop5Reward) {
+    throw new Error('You have already claimed your Season Bounty for this tournament.');
+  }
+
+  const currentTokens = user.tokens ?? 250;
+  const newTokens = currentTokens + tier.tokensReward;
+
+  try {
+    const userRef = doc(db, USERS_COLLECTION, user.uid);
+    await updateDoc(userRef, {
+      tokens: newTokens,
+      claimedTop5Reward: true,
+      badgeTitle: tier.badge,
+      updatedAt: new Date().toISOString()
+    });
+
+    await addDoc(collection(db, ACTIVITY_COLLECTION), {
+      teamName: user.teamName || user.username,
+      challengeTitle: `Claimed Rank #${rank} Bounty (${tier.badge})`,
+      category: 'Reverse',
+      points: tier.tokensReward,
+      timestamp: 'Just now',
+      isFirstBlood: rank === 1
+    });
+
+    return {
+      success: true,
+      tokensAwarded: tier.tokensReward,
+      badgeGranted: tier.badge,
+      message: `Bounty Claimed! +${tier.tokensReward.toLocaleString()} Cyber Credits and "${tier.badge}" title awarded!`
+    };
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `${USERS_COLLECTION}/${user.uid}`);
+    throw err;
+  }
+}
 
 export async function purchaseArmoryItem(
   user: UserProfile,
@@ -436,3 +412,6 @@ export async function equipTitle(
     throw err;
   }
 }
+
+export const unlockHintWithTokens = spendTokensForHint;
+

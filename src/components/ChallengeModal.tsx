@@ -1,28 +1,46 @@
 import React, { useState } from 'react';
-import { X, Flag, CheckCircle2, AlertTriangle, Lightbulb, BookOpen, Terminal, Shield, ArrowRight, Coins, Sparkles, Radio, Cpu, Network, LockOpen } from 'lucide-react';
+import {
+  X,
+  Flag,
+  CheckCircle2,
+  AlertTriangle,
+  Lightbulb,
+  BookOpen,
+  Terminal,
+  Shield,
+  ArrowRight,
+  Coins,
+  Sparkles,
+  Radio,
+  Cpu,
+  Network,
+  LockOpen
+} from 'lucide-react';
 import { Challenge } from '../types/ctf';
 import { sound } from '../utils/audio';
 
 // Sandboxes
-import { SqlInjectionSandbox } from './challenges/SqlInjectionSandbox';
-import { JwtTamperSandbox } from './challenges/JwtTamperSandbox';
-import { PrototypePollutionSandbox } from './challenges/PrototypePollutionSandbox';
-import { XorCipherSandbox } from './challenges/XorCipherSandbox';
-import { RsaCubeRootSandbox } from './challenges/RsaCubeRootSandbox';
-import { DisassemblerSandbox } from './challenges/DisassemblerSandbox';
-import { JsDeobfuscatorSandbox } from './challenges/JsDeobfuscatorSandbox';
-import { PcapInspectorSandbox } from './challenges/PcapInspectorSandbox';
-import { HexEditorSandbox } from './challenges/HexEditorSandbox';
-import { LinuxTerminalSandbox } from './challenges/LinuxTerminalSandbox';
 import { BlindSqlSandbox } from './challenges/BlindSqlSandbox';
 import { PaddingOracleSandbox } from './challenges/PaddingOracleSandbox';
 import { CustomVmSandbox } from './challenges/CustomVmSandbox';
 import { FormatStringSandbox } from './challenges/FormatStringSandbox';
 import { MemoryForensicsSandbox } from './challenges/MemoryForensicsSandbox';
-import { SsrfSandbox } from './challenges/SsrfSandbox';
-import { VigenereAutokeySandbox } from './challenges/VigenereAutokeySandbox';
-import { StegoBitplanesSandbox } from './challenges/StegoBitplanesSandbox';
+import { RsaCubeRootSandbox } from './challenges/RsaCubeRootSandbox';
+import { DisassemblerSandbox } from './challenges/DisassemblerSandbox';
+import { PcapInspectorSandbox } from './challenges/PcapInspectorSandbox';
+import { LinuxTerminalSandbox } from './challenges/LinuxTerminalSandbox';
+import { PrototypePollutionSandbox } from './challenges/PrototypePollutionSandbox';
+import { JwtTamperSandbox } from './challenges/JwtTamperSandbox';
+import { XorCipherSandbox } from './challenges/XorCipherSandbox';
 import { Ret2WinSandbox } from './challenges/Ret2WinSandbox';
+import { SsrfSandbox } from './challenges/SsrfSandbox';
+import { StegoBitplanesSandbox } from './challenges/StegoBitplanesSandbox';
+import { VigenereAutokeySandbox } from './challenges/VigenereAutokeySandbox';
+import { GhostwireSandbox } from './challenges/GhostwireSandbox';
+import { LatticeCryptoSandbox } from './challenges/LatticeCryptoSandbox';
+import { PolymorphicVmSandbox } from './challenges/PolymorphicVmSandbox';
+import { DeserializationSandbox } from './challenges/DeserializationSandbox';
+import { TlsForensicsSandbox } from './challenges/TlsForensicsSandbox';
 import { UniversalTerminalSandbox } from './challenges/UniversalTerminalSandbox';
 
 interface Props {
@@ -77,26 +95,6 @@ export const ChallengeModal: React.FC<Props> = ({
 
   const renderSandbox = () => {
     switch (challenge.id) {
-      case 'sqli-auth-bypass':
-        return <SqlInjectionSandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'jwt-tamper-bypass':
-        return <JwtTamperSandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'prototype-pollution-sandbox':
-        return <PrototypePollutionSandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'xor-frequency-breaker':
-        return <XorCipherSandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'rsa-cube-root-weakness':
-        return <RsaCubeRootSandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'reverse-disassembler-crackme':
-        return <DisassemblerSandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'js-deobfuscator-packer':
-        return <JsDeobfuscatorSandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'pcap-stream-exfiltration':
-        return <PcapInspectorSandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'hex-magic-bytes-repair':
-        return <HexEditorSandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'linux-suid-privesc':
-        return <LinuxTerminalSandbox onFlagFound={handleFlagFoundInSandbox} />;
       case 'blind-sqli-time-oracle':
         return <BlindSqlSandbox onFlagFound={handleFlagFoundInSandbox} />;
       case 'cbc-padding-oracle-attack':
@@ -107,22 +105,46 @@ export const ChallengeModal: React.FC<Props> = ({
         return <FormatStringSandbox onFlagFound={handleFlagFoundInSandbox} />;
       case 'memory-dump-volatility-forensics':
         return <MemoryForensicsSandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'daily-ssrf-metadata':
-        return <SsrfSandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'daily-vigenere-autokey':
-        return <VigenereAutokeySandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'daily-stego-bitplanes':
-        return <StegoBitplanesSandbox onFlagFound={handleFlagFoundInSandbox} />;
-      case 'daily-pwn-ret2win':
+      case 'rsa-cube-root-weakness':
+        return <RsaCubeRootSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'linux-suid-privesc':
+        return <LinuxTerminalSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'prototype-pollution-sandbox':
+        return <PrototypePollutionSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'reverse-disassembler-crackme':
+        return <DisassemblerSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'pcap-stream-exfiltration':
+        return <PcapInspectorSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'jwt-tamper-bypass':
+        return <JwtTamperSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'xor-frequency-breaker':
+        return <XorCipherSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'ret2win-rop-buffer-overflow':
         return <Ret2WinSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'ssrf-cloud-metadata-pivot':
+        return <SsrfSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'stego-bitplanes-recovery':
+        return <StegoBitplanesSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'vigenere-autokey-breaker':
+        return <VigenereAutokeySandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'operation-ghostwire-ret2libc':
+        return <GhostwireSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'the-quantum-lattice-ecdsa':
+        return <LatticeCryptoSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'shadow-kernel-polymorphic':
+        return <PolymorphicVmSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'zero-click-deserialization':
+        return <DeserializationSandbox onFlagFound={handleFlagFoundInSandbox} />;
+      case 'bgp-hijack-tls13-downgrade':
+        return <TlsForensicsSandbox onFlagFound={handleFlagFoundInSandbox} />;
       default:
         return <UniversalTerminalSandbox challenge={challenge} onFlagFound={handleFlagFoundInSandbox} />;
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Modal Top Header */}
         <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-start justify-between gap-4">
           <div className="space-y-1">
@@ -137,7 +159,9 @@ export const ChallengeModal: React.FC<Props> = ({
                     ? 'text-amber-300'
                     : challenge.difficulty === 'Hard'
                     ? 'text-rose-300'
-                    : 'text-purple-300 font-bold'
+                    : challenge.difficulty === 'Insane'
+                    ? 'text-purple-300 font-bold'
+                    : 'text-rose-400 font-extrabold uppercase tracking-wider animate-pulse drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]'
                 }
               >
                 {challenge.difficulty}
@@ -170,7 +194,7 @@ export const ChallengeModal: React.FC<Props> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 px-6 py-2.5 bg-slate-950/60 border-b border-slate-800 text-xs">
+        <div className="flex items-center gap-2 px-6 py-2.5 bg-slate-950/60 border-b border-slate-800 text-xs flex-wrap">
           <button
             onClick={() => {
               sound.playClick();
@@ -403,7 +427,7 @@ export const ChallengeModal: React.FC<Props> = ({
                   <span>Identified Attack Vectors</span>
                 </div>
                 <div className="flex flex-wrap gap-2 pt-1">
-                  {challenge.tags.map((tag, i) => (
+                  {challenge.tags.map(tag => (
                     <div
                       key={tag}
                       className="px-2.5 py-1.5 rounded bg-slate-900 border border-slate-700/80 text-[11px] text-slate-300 flex items-center gap-2"
@@ -426,156 +450,145 @@ export const ChallengeModal: React.FC<Props> = ({
               <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
                 <div className="flex items-center gap-2">
                   <Coins className="w-4 h-4 text-amber-400" />
-                  <span className="text-slate-400">Your Cyber Credits:</span>
-                  <span className="font-bold text-amber-400 tabular-nums">{userTokens.toLocaleString()} Credits</span>
+                  <span className="text-slate-400">Available Cyber Credits:</span>
+                  <span className="font-bold text-amber-400">{userTokens.toLocaleString()}</span>
                 </div>
+
                 {onOpenTokenStore && (
                   <button
                     onClick={() => {
                       sound.playClick();
                       onOpenTokenStore();
                     }}
-                    className="text-[11px] text-amber-300 hover:text-amber-200 underline font-semibold flex items-center gap-1"
+                    className="text-xs text-amber-300 hover:text-amber-200 underline font-semibold flex items-center gap-1"
                   >
-                    <span>+ Get More Tokens</span>
+                    <span>Get More Credits</span>
+                    <ArrowRight className="w-3 h-3" />
                   </button>
                 )}
               </div>
 
-              <div className="space-y-3">
-                {challenge.hints.map((hint, idx) => {
+              {challenge.hints.length === 0 ? (
+                <div className="text-center py-8 text-slate-500 text-xs">No hints registered for this objective.</div>
+              ) : (
+                challenge.hints.map((hint, idx) => {
                   const isUnlocked = unlockedHints.includes(hint.id);
-                  const tokenCost = hint.cost * 2;
+                  const tokenCost = hint.cost * 3;
                   const canAffordTokens = userTokens >= tokenCost;
 
                   return (
                     <div
                       key={hint.id}
-                      className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-2.5 text-xs"
+                      className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2.5 transition-all"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <span className="font-semibold text-slate-300">Hint {idx + 1}</span>
-                        {isUnlocked ? (
-                          <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Unlocked & Available</span>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-300">Intel Hint #{idx + 1}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-amber-400">-{hint.cost} pts penalty</span>
+                          <span className="text-slate-600">or</span>
+                          <span className="font-mono text-emerald-400 flex items-center gap-1">
+                            <Coins className="w-3 h-3" />
+                            {tokenCost} credits (0 penalty)
                           </span>
-                        ) : (
-                          <div className="flex flex-wrap items-center gap-2">
-                            {/* Option 1: Unlock with Cyber Credits (0 score penalty) */}
-                            {onUnlockHintWithTokens && (
-                              <button
-                                onClick={() => {
-                                  if (!canAffordTokens && onOpenTokenStore) {
-                                    sound.playClick();
-                                    onOpenTokenStore();
-                                  } else {
-                                    sound.playHint();
-                                    onUnlockHintWithTokens(challenge.id, hint.id, tokenCost);
-                                  }
-                                }}
-                                className={`px-3 py-1.5 rounded font-mono font-bold flex items-center gap-1.5 transition-all ${
-                                  canAffordTokens
-                                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-sm'
-                                    : 'bg-amber-950/60 border border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
-                                }`}
-                                title="Unlock hint without losing points on the public scoreboard"
-                              >
-                                <Coins className="w-3.5 h-3.5" />
-                                <span>
-                                  {canAffordTokens
-                                    ? `Unlock with ${tokenCost} Credits (0 Score Penalty)`
-                                    : `Need ${tokenCost} Credits (+Get Tokens)`}
-                                </span>
-                              </button>
-                            )}
-
-                            {/* Option 2: Unlock with Score Penalty */}
-                            <button
-                              onClick={() => {
-                                sound.playHint();
-                                onUnlockHint(challenge.id, hint.id, hint.cost);
-                              }}
-                              className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 rounded font-medium flex items-center gap-1 transition-colors text-[11px]"
-                              title="Deducts points directly from your rank score"
-                            >
-                              <Lightbulb className="w-3 h-3 text-slate-500" />
-                              <span>Spend -{hint.cost} Score pts</span>
-                            </button>
-                          </div>
-                        )}
+                        </div>
                       </div>
+
                       {isUnlocked ? (
-                        <p className="text-slate-300 font-mono text-xs leading-relaxed pt-1 bg-slate-900/60 p-2.5 rounded border border-slate-800">
+                        <p className="text-xs text-emerald-300 font-mono bg-emerald-950/30 p-3 rounded-lg border border-emerald-500/30">
                           {hint.text}
                         </p>
                       ) : (
-                        <p className="text-slate-500 italic">
-                          Hint is locked. Unlock using Cyber Credits to preserve your score, or deduct {hint.cost} score points.
-                        </p>
+                        <div className="pt-2 flex flex-wrap items-center gap-2">
+                          {onUnlockHintWithTokens && (
+                            <button
+                              onClick={() => {
+                                sound.playClick();
+                                onUnlockHintWithTokens(challenge.id, hint.id, tokenCost);
+                              }}
+                              disabled={!canAffordTokens}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all shadow ${
+                                canAffordTokens
+                                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white'
+                                  : 'bg-slate-900 border border-slate-800 text-slate-500 cursor-not-allowed'
+                              }`}
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>Unlock with {tokenCost} Credits (0 Score Penalty)</span>
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => {
+                              sound.playClick();
+                              onUnlockHint(challenge.id, hint.id, hint.cost);
+                            }}
+                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono rounded-lg transition-colors"
+                          >
+                            Standard Unlock (-{hint.cost} pts from score)
+                          </button>
+                        </div>
                       )}
                     </div>
                   );
-                })}
-              </div>
+                })
+              )}
             </div>
           )}
 
           {activeTab === 'writeup' && (
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-3 text-sm">
-              <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                <BookOpen className="w-4 h-4" />
-                <span>Declassified Solution Walkthrough</span>
-              </div>
-              <p className="text-slate-300 leading-relaxed font-sans">{challenge.writeup}</p>
-              <div className="p-3 bg-slate-900 border border-slate-800 rounded font-mono text-xs text-emerald-300">
-                Accepted Flag: {challenge.flag}
+            <div className="space-y-4 text-xs font-mono">
+              <div className="p-4 bg-emerald-950/20 border border-emerald-500/30 rounded-xl space-y-2">
+                <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Official Vulnerability Root-Cause Walkthrough</span>
+                </div>
+                <div className="text-slate-300 leading-relaxed pt-1">
+                  {challenge.writeup || 'Flag verified and logged.'}
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Modal Bottom Flag Submission Bar */}
-        <div className="p-4 bg-slate-950 border-t border-slate-800">
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-center gap-3">
-            <div className="relative flex-1 w-full">
-              <input
-                type="text"
-                value={flagInput}
-                onChange={e => setFlagInput(e.target.value)}
-                placeholder="Enter capture flag e.g. flag{...}"
-                disabled={isSolved}
-                className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-700/80 rounded-lg text-xs font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 disabled:opacity-50"
-              />
-              <Flag className="w-4 h-4 text-emerald-400 absolute left-3 top-2.5" />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSolved || !flagInput.trim()}
-              className="w-full sm:w-auto px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg font-medium text-xs flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
-            >
-              <span>{isSolved ? 'Challenge Completed' : 'Submit Flag'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </form>
-
+        {/* Modal Bottom: Flag Submission Footer */}
+        <div className="px-6 py-4 bg-slate-950 border-t border-slate-800 space-y-3">
           {feedback && (
             <div
-              className={`mt-2.5 p-2 rounded text-xs flex items-center gap-2 ${
+              className={`p-2.5 rounded-lg text-xs flex items-center gap-2 font-mono ${
                 feedback.type === 'success'
-                  ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/30'
-                  : 'bg-rose-950/60 text-rose-300 border border-rose-500/30'
+                  ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300'
+                  : 'bg-rose-950/60 border border-rose-500/40 text-rose-300'
               }`}
             >
               {feedback.type === 'success' ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
               ) : (
-                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
               )}
               <span>{feedback.message}</span>
             </div>
           )}
+
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Flag className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type="text"
+                value={flagInput}
+                onChange={e => setFlagInput(e.target.value)}
+                placeholder="flag{...}"
+                className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 text-xs font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-mono text-xs font-bold flex items-center gap-1.5 transition-colors shadow-lg"
+            >
+              <span>Submit Flag</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </form>
         </div>
       </div>
     </div>

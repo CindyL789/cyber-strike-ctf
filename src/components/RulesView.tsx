@@ -1,88 +1,60 @@
 import React from 'react';
-import { ShieldCheck, Flag, Lightbulb, Terminal, AlertTriangle, BookOpen, Users, Github } from 'lucide-react';
+import { Shield, AlertTriangle, Flag, Terminal, Trophy, Users } from 'lucide-react';
 
 export const RulesView: React.FC = () => {
   return (
-    <div className="max-w-4xl mx-auto space-y-6 text-sm text-slate-300">
-      <div className="p-6 bg-slate-950 border border-slate-800 rounded-xl space-y-4">
-        <div className="flex items-center gap-2 text-emerald-400">
-          <ShieldCheck className="w-5 h-5" />
-          <h2 className="text-base font-bold text-slate-100 uppercase tracking-wider">
-            CyberStrike Arena Operating Directives
-          </h2>
-        </div>
-        <p className="leading-relaxed">
-          Welcome to the live cybersecurity capture the flag arena. All challenges are simulated in isolated sandbox environments with authentic vulnerability patterns spanning web exploitation, modern and classical cryptography, reverse engineering, forensics, and Linux privilege escalation.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
-          <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs uppercase tracking-wider">
-            <Flag className="w-4 h-4 text-emerald-400" />
-            <span>01. Flag Format</span>
+    <div className="space-y-6 max-w-4xl mx-auto font-mono text-xs">
+      <div className="p-6 bg-slate-950 border border-slate-800 rounded-2xl space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <Shield className="w-5 h-5" />
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            All flags follow the canonical syntax <code className="text-emerald-400 font-mono">flag&#123;...&#125;</code>. Flags are strictly case-sensitive. You can submit flags either inside each challenge’s interactive modal or through the global quick submit bar in the top navigation.
-          </p>
+          <div>
+            <h2 className="text-base font-bold text-white tracking-tight">Rules of Engagement & Arena Intel</h2>
+            <p className="text-xs text-slate-400">Standard operating guidelines for CyberStrike CTF tournaments</p>
+          </div>
         </div>
 
-        <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
-          <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs uppercase tracking-wider">
-            <Lightbulb className="w-4 h-4 text-amber-400" />
-            <span>02. Hint Economy</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-2">
+          <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2">
+            <div className="font-bold text-emerald-400 flex items-center gap-2">
+              <Flag className="w-4 h-4" />
+              <span>Flag Syntax & Standards</span>
+            </div>
+            <p className="text-slate-300 leading-relaxed text-[11px]">
+              All official flags follow the standard format: <code className="text-emerald-400">flag&#123;...&#125;</code>. Flags are strictly case-sensitive. Leaking flags in public channels will lead to immediate score disqualification.
+            </p>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Progressive hints are available for each challenge. Unlocking a hint will deduct the stated penalty points from your scoreboard total. Pure solves without hints maximize your competitive standing.
-          </p>
-        </div>
 
-        <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
-          <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs uppercase tracking-wider">
-            <Terminal className="w-4 h-4 text-cyan-400" />
-            <span>03. Cyber Workbench</span>
+          <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2">
+            <div className="font-bold text-amber-400 flex items-center gap-2">
+              <Trophy className="w-4 h-4" />
+              <span>Season Top 5 Bounties</span>
+            </div>
+            <p className="text-slate-300 leading-relaxed text-[11px]">
+              The top 5 operatives on the leaderboard at season conclusion share the 13,000 Cyber Credits bounty pool and unlock exclusive Obsidian Crown, Crimson Skull, and Dragon badges.
+            </p>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Access the built-in Cyber Workbench via the wrench icon in the top header. It includes full Base64, Hex, ROT-13, XOR, MD5, SHA-256, and URL decoders to assist with crypto and forensics challenges.
-          </p>
-        </div>
 
-        <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
-          <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs uppercase tracking-wider">
-            <BookOpen className="w-4 h-4 text-indigo-400" />
-            <span>04. Educational Writeups</span>
+          <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2">
+            <div className="font-bold text-rose-400 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Strict Scope & Boundaries</span>
+            </div>
+            <p className="text-slate-300 leading-relaxed text-[11px]">
+              Attacking the scoring server infrastructure, denial-of-service (DoS) against challenge sandboxes, or automated brute forcing of authentication gateways is strictly forbidden.
+            </p>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Once you capture a challenge flag, its complete technical writeup and root-cause analysis unlock automatically in the challenge modal for maximum learning and debriefing.
-          </p>
-        </div>
 
-        <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
-          <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs uppercase tracking-wider">
-            <Users className="w-4 h-4 text-indigo-400" />
-            <span>05. Squads & Solves Aggregation</span>
+          <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2">
+            <div className="font-bold text-indigo-400 flex items-center gap-2">
+              <Terminal className="w-4 h-4" />
+              <span>System Shell & Workbench</span>
+            </div>
+            <p className="text-slate-300 leading-relaxed text-[11px]">
+              Operators are equipped with a built-in System Shell terminal (with ls, cat, whoami, strings, grep) and a Cryptographic Workbench (Base64, Hex, XOR, Rot13) to aid rapid tactical analysis.
+            </p>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Join or establish a CTF squad via the "Squads" tab. All members' uniquely solved challenges merge into an aggregated squad score, competing collectively on the live leaderboard.
-          </p>
-        </div>
-
-        <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
-          <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs uppercase tracking-wider">
-            <Github className="w-4 h-4 text-slate-100" />
-            <span>06. Open Source Repository</span>
-          </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Explore the project codebase, contribute new challenges, and view the latest release on GitHub:
-          </p>
-          <a
-            href="https://github.com/CindyL789/cyber-strike-ctf"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs font-mono text-cyan-400 hover:text-cyan-300 underline break-all inline-flex items-center gap-1.5"
-          >
-            <span>github.com/CindyL789/cyber-strike-ctf</span>
-          </a>
         </div>
       </div>
     </div>

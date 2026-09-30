@@ -1,41 +1,32 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import confetti from 'canvas-confetti';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Shield,
-  Trophy,
-  Activity,
-  CheckCircle2,
-  Terminal,
+  Flag,
   Search,
-  ArrowRight,
-  Flame,
-  Award,
-  Sparkles,
-  Zap,
   Filter,
-  ShieldAlert,
-  LogIn
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  Sparkles,
+  Trophy,
+  Terminal,
+  Shield,
+  Zap,
+  Flame,
+  Radio,
+  ExternalLink,
+  ChevronRight,
+  Skull,
+  Layers,
+  Award,
+  Crown
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
-import { Category, Difficulty, Challenge, TeamScore, ActivityEvent, UserProfile } from './types/ctf';
+// Types
+import { Challenge, Category, Difficulty, UserProfile, TeamScore, ActivityEvent } from './types/ctf';
 import { INITIAL_CHALLENGES, INITIAL_TEAMS, INITIAL_ACTIVITY } from './data/challenges';
-import { Header } from './components/Header';
-import { ChallengeModal } from './components/ChallengeModal';
-import { CyberWorkbench } from './components/CyberWorkbench';
-import { LeaderboardView } from './components/LeaderboardView';
-import { LiveFeedView } from './components/LiveFeedView';
-import { RulesView } from './components/RulesView';
-import { AuthModal } from './components/AuthModal';
-import { AdminDashboard } from './components/AdminDashboard';
-import { TeamHubView } from './components/TeamHubView';
-import { DailyOpBanner } from './components/DailyOpBanner';
-import { TokenStoreModal } from './components/TokenStoreModal';
-import { Top5PodiumModal } from './components/Top5PodiumModal';
-import { SystemShell } from './components/SystemShell';
-import { sound } from './utils/audio';
 
 // Services
-import { subscribeToAuthProfile, logoutPlayer } from './services/authService';
 import {
   subscribeToChallenges,
   subscribeToActivity,
@@ -43,391 +34,456 @@ import {
   unlockHint
 } from './services/challengeService';
 import { subscribeToScoreboard } from './services/scoreboardService';
-import { ensureDailyChallengePublished, getDailyOpInfo } from './services/dailyChallengeService';
-import { spendTokensForHint } from './services/tokenService';
+import {
+  subscribeToAuthProfile,
+  loginPlayer,
+  registerPlayer,
+  logoutPlayer
+} from './services/authService';
+import { getDailyOpInfo } from './services/dailyChallengeService';
+import { unlockHintWithTokens } from './services/tokenService';
+import { sound } from './utils/audio';
+
+// Components
+import { Header } from './components/Header';
+import { ChallengeModal } from './components/ChallengeModal';
+import { CyberWorkbench } from './components/CyberWorkbench';
+import { DailyOpBanner } from './components/DailyOpBanner';
+import { LeaderboardView } from './components/LeaderboardView';
+import { LiveFeedView } from './components/LiveFeedView';
+import { RulesView } from './components/RulesView';
+import { TeamHubView } from './components/TeamHubView';
+import { TokenStoreModal } from './components/TokenStoreModal';
+import { Top5PodiumModal } from './components/Top5PodiumModal';
+import { AdminDashboard } from './components/AdminDashboard';
+import { SystemShell } from './components/SystemShell';
+
+type TabType = 'challenges' | 'scoreboard' | 'activity' | 'teams' | 'rules' | 'admin' | 'shell';
 
 export default function App() {
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [currentTab, setCurrentTab] = useState<TabType>('challenges');
   const [challenges, setChallenges] = useState<Challenge[]>(INITIAL_CHALLENGES);
   const [teams, setTeams] = useState<TeamScore[]>(INITIAL_TEAMS);
   const [activities, setActivities] = useState<ActivityEvent[]>(INITIAL_ACTIVITY);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
-  // Local solve fallback if playing guest before signup
-  const [guestSolvedIds, setGuestSolvedIds] = useState<string[]>([]);
-  const [guestUnlockedHints, setGuestUnlockedHints] = useState<string[]>([]);
+  // Guest State Fallback (when not logged in)
+  const [guestSolvedIds, setGuestSolvedIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('cyberstrike_guest_solves') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [guestScore, setGuestScore] = useState<number>(() => {
+    try {
+      return parseInt(localStorage.getItem('cyberstrike_guest_score') || '0', 10);
+    } catch {
+      return 0;
+    }
+  });
+  const [guestTokens, setGuestTokens] = useState<number>(() => {
+    try {
+      return parseInt(localStorage.getItem('cyberstrike_guest_tokens') || '250', 10);
+    } catch {
+      return 250;
+    }
+  });
+  const [guestHints, setGuestHints] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('cyberstrike_guest_hints') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [guestInventory, setGuestInventory] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('cyberstrike_guest_inventory') || '[]');
+    } catch {
+      return [];
+    }
+  });
 
-  const [selectedCategory, setSelectedCategory] = useState<'All' | Category>('All');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<'All' | Difficulty>('All');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentTab, setCurrentTab] = useState<'challenges' | 'scoreboard' | 'activity' | 'teams' | 'rules' | 'admin' | 'shell'>('challenges');
+  // Filter state
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Solved' | 'Unsolved'>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [hardcoreMode, setHardcoreMode] = useState<boolean>(false);
+
+  // Active Challenge Modal
   const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null);
-  const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [bannerNotice, setBannerNotice] = useState<string | null>(null);
-  const [isDailyFilterActive, setIsDailyFilterActive] = useState(false);
-  const [isTokenStoreOpen, setIsTokenStoreOpen] = useState(false);
-  const [isTop5PodiumOpen, setIsTop5PodiumOpen] = useState(false);
-  const [guestTokens, setGuestTokens] = useState<number>(250);
 
-  // 1. Subscribe to Firebase Auth and User Profile
+  // Tools & Modals
+  const [workbenchOpen, setWorkbenchOpen] = useState<boolean>(false);
+  const [tokenStoreOpen, setTokenStoreOpen] = useState<boolean>(false);
+  const [podiumOpen, setPodiumOpen] = useState<boolean>(false);
+  const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authEmail, setAuthEmail] = useState<string>('');
+  const [authPassword, setAuthPassword] = useState<string>('');
+  const [authUsername, setAuthUsername] = useState<string>('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(false);
+
+  // Notification Toast
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+
+  // Listen to Firestore real-time streams
   useEffect(() => {
-    const unsub = subscribeToAuthProfile(profile => {
+    const unsubChallenges = subscribeToChallenges(list => {
+      setChallenges(list);
+    });
+
+    const unsubTeams = subscribeToScoreboard(list => {
+      setTeams(list);
+    });
+
+    const unsubActivity = subscribeToActivity(list => {
+      setActivities(list);
+    });
+
+    const unsubAuth = subscribeToAuthProfile(profile => {
       setUserProfile(profile);
     });
-    return () => unsub();
+
+    return () => {
+      unsubChallenges();
+      unsubTeams();
+      unsubActivity();
+      if (typeof unsubAuth === 'function') unsubAuth();
+    };
   }, []);
 
-  // 2. Ensure today's Daily Challenge is initialized in Firestore
-  useEffect(() => {
-    ensureDailyChallengePublished().catch(err => {
-      console.warn('Daily challenge auto-seed notice:', err);
-    });
-  }, []);
-
-  // 3. Subscribe to Challenges in Firestore
-  useEffect(() => {
-    const unsub = subscribeToChallenges(updatedChallenges => {
-      setChallenges(updatedChallenges);
-    });
-    return () => unsub();
-  }, []);
-
-  // 3. Subscribe to Real-Time Scoreboard
-  useEffect(() => {
-    const unsub = subscribeToScoreboard(userProfile?.uid || null, liveTeams => {
-      setTeams(liveTeams);
-    });
-    return () => unsub();
-  }, [userProfile?.uid]);
-
-  // 4. Subscribe to Live Activity Feed
-  useEffect(() => {
-    const unsub = subscribeToActivity(events => {
-      if (events.length > 0) {
-        setActivities(events);
-      }
-    });
-    return () => unsub();
-  }, []);
-
-  // Compute effective solved challenge IDs & unlocked hints
-  const solvedIds = useMemo(() => {
-    if (userProfile) {
-      return userProfile.solvedChallengeIds || [];
-    }
-    return guestSolvedIds;
-  }, [userProfile, guestSolvedIds]);
-
-  const unlockedHints = useMemo(() => {
-    if (userProfile) {
-      return userProfile.unlockedHintIds || [];
-    }
-    return guestUnlockedHints;
-  }, [userProfile, guestUnlockedHints]);
-
-  // User Rank on scoreboard
-  const userRank = useMemo(() => {
-    const sorted = [...teams].sort((a, b) => b.score - a.score);
-    if (!userProfile) return teams.length + 1;
-    const idx = sorted.findIndex(t => t.id === userProfile.uid);
-    return idx === -1 ? sorted.length : idx + 1;
-  }, [teams, userProfile]);
-
-  const triggerConfetti = () => {
-    try {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#10b981', '#06b6d4', '#6366f1', '#f59e0b']
-      });
-    } catch {
-      // Confetti fallback
-    }
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(prev => (prev === msg ? null : prev));
+    }, 4000);
   };
 
-  const handleFlagSubmission = (challengeId: string, flag: string): boolean => {
+  const solvedIds = useMemo(() => {
+    return userProfile ? userProfile.solvedChallengeIds || [] : guestSolvedIds;
+  }, [userProfile, guestSolvedIds]);
+
+  const unlockedHintIds = useMemo(() => {
+    return userProfile ? userProfile.unlockedHintIds || [] : guestHints;
+  }, [userProfile, guestHints]);
+
+  const currentScore = userProfile ? userProfile.score : guestScore;
+
+  // Calculate Rank
+  const userRank = useMemo(() => {
+    const sorted = [...teams].sort((a, b) => b.score - a.score);
+    const index = sorted.findIndex(t => t.name === (userProfile?.username || 'GhostProtocol'));
+    return index !== -1 ? index + 1 : 6;
+  }, [teams, userProfile]);
+
+  // Daily Operation Info
+  const dailyOp = useMemo(() => {
+    return getDailyOpInfo(challenges, solvedIds);
+  }, [challenges, solvedIds]);
+
+  // Filtered Challenges
+  const filteredChallenges = useMemo(() => {
+    return challenges.filter(c => {
+      if (selectedCategory !== 'All' && c.category !== selectedCategory) return false;
+      if (selectedDifficulty !== 'All' && c.difficulty !== selectedDifficulty) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const inTitle = c.title.toLowerCase().includes(q);
+        const inDesc = c.description.toLowerCase().includes(q);
+        const inTags = c.tags.some(t => t.toLowerCase().includes(q));
+        if (!inTitle && !inDesc && !inTags) return false;
+      }
+      const isSolved = solvedIds.includes(c.id);
+      if (statusFilter === 'Solved' && !isSolved) return false;
+      if (statusFilter === 'Unsolved' && isSolved) return false;
+      return true;
+    });
+  }, [challenges, selectedCategory, selectedDifficulty, statusFilter, searchQuery, solvedIds]);
+
+  // Handle Flag Submission
+  const handleFlagSubmit = (challengeId: string, flag: string): boolean => {
     const ch = challenges.find(c => c.id === challengeId);
     if (!ch) return false;
 
-    if (flag.trim() === ch.flag.trim()) {
-      if (userProfile) {
-        // Sync with Firestore database
-        submitFlag(userProfile, ch, flag)
-          .then(res => {
-            if (res.success) {
-              triggerConfetti();
-              sound.playSuccess();
-              setBannerNotice(res.message);
-              setTimeout(() => setBannerNotice(null), 5000);
-            }
-          })
-          .catch(err => {
-            console.error('Error submitting flag to database:', err);
-            setBannerNotice('Database sync error. Please check connection.');
-          });
-      } else {
-        // Guest mode solve
-        if (!guestSolvedIds.includes(challengeId)) {
-          setGuestSolvedIds(prev => [...prev, challengeId]);
-          triggerConfetti();
-          sound.playSuccess();
-          setBannerNotice(`Flag Captured! Sign up or log in to record this permanently on the live scoreboard.`);
-          setTimeout(() => setBannerNotice(null), 6000);
-        }
-      }
+    const isMatch = ch.flag.trim() === flag.trim();
+    if (!isMatch) return false;
+
+    if (solvedIds.includes(challengeId)) {
+      showToast('Challenge already solved! No duplicate points.');
       return true;
     }
 
-    return false;
+    // Apply Hardcore multiplier (+25% score bonus)
+    const bonusMultiplier = hardcoreMode ? 1.25 : 1.0;
+    const finalPoints = Math.round(ch.points * bonusMultiplier);
+
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+
+    if (userProfile) {
+      submitFlag(userProfile, ch, flag.trim()).catch(() => {
+        // Handled in service
+      });
+      showToast(`Flag Captured! +${finalPoints} points awarded ${hardcoreMode ? '(HARDCORE +25% BONUS!)' : ''}`);
+    } else {
+      // Guest local storage
+      const newSolves = [...guestSolvedIds, challengeId];
+      const newScore = guestScore + finalPoints;
+      const newTokens = guestTokens + (hardcoreMode ? 75 : 50);
+
+      setGuestSolvedIds(newSolves);
+      setGuestScore(newScore);
+      setGuestTokens(newTokens);
+
+      localStorage.setItem('cyberstrike_guest_solves', JSON.stringify(newSolves));
+      localStorage.setItem('cyberstrike_guest_score', newScore.toString());
+      localStorage.setItem('cyberstrike_guest_tokens', newTokens.toString());
+
+      showToast(`Flag Captured as Guest! +${finalPoints} points ${hardcoreMode ? '(HARDCORE +25% BONUS!)' : ''}`);
+    }
+
+    return true;
   };
 
-  // Quick submit from top header bar
-  const handleQuickSubmit = (flag: string) => {
+  const handleQuickSubmitFlag = (flag: string) => {
+    sound.playClick();
     const clean = flag.trim();
-    const matched = challenges.find(c => c.flag.trim() === clean);
-    if (matched) {
-      handleFlagSubmission(matched.id, clean);
+    const match = challenges.find(c => c.flag.trim() === clean);
+    if (match) {
+      handleFlagSubmit(match.id, clean);
+      sound.playSuccess();
     } else {
       sound.playError();
-      setBannerNotice(`Flag rejection: No active challenge matches this hash.`);
-      setTimeout(() => setBannerNotice(null), 4000);
+      showToast('Flag rejected. No matching operation found.');
     }
   };
 
-  const handleUnlockHint = (challengeId: string, hintId: string, cost: number) => {
+  const handleUnlockHint = async (challengeId: string, hintId: string, cost: number) => {
+    if (hardcoreMode) {
+      sound.playError();
+      showToast('HARDCORE MODE: Tactical hints are restricted in competitive mode!');
+      return;
+    }
+
+    sound.playClick();
+    if (unlockedHintIds.includes(hintId)) return;
+
     if (userProfile) {
-      unlockHint(userProfile, hintId, cost)
-        .then(() => {
-          sound.playHint();
-          setBannerNotice(`Hint unlocked (-${cost} pts penalty applied to cloud database).`);
-          setTimeout(() => setBannerNotice(null), 3000);
-        })
-        .catch(err => {
-          console.error('Hint unlock error:', err);
-        });
+      await unlockHint(userProfile, challengeId, hintId, cost);
     } else {
-      if (!guestUnlockedHints.includes(hintId)) {
-        setGuestUnlockedHints(prev => [...prev, hintId]);
-        sound.playHint();
-        setBannerNotice(`Hint unlocked (-${cost} pts penalty applied).`);
-        setTimeout(() => setBannerNotice(null), 3000);
-      }
+      const newHints = [...guestHints, hintId];
+      const newScore = Math.max(0, guestScore - cost);
+      setGuestHints(newHints);
+      setGuestScore(newScore);
+      localStorage.setItem('cyberstrike_guest_hints', JSON.stringify(newHints));
+      localStorage.setItem('cyberstrike_guest_score', newScore.toString());
     }
+    sound.playSuccess();
+    showToast(`Hint unlocked (-${cost} score penalty).`);
   };
 
-  const handleUnlockHintWithTokens = (challengeId: string, hintId: string, tokenCost: number) => {
+  const handleUnlockHintWithTokens = async (challengeId: string, hintId: string, tokenCost: number) => {
+    sound.playClick();
+    if (unlockedHintIds.includes(hintId)) return;
+
     if (userProfile) {
-      spendTokensForHint(userProfile, hintId, tokenCost)
-        .then(res => {
-          sound.playHint();
-          setBannerNotice(`Hint unlocked via ${tokenCost} Cyber Credits (0 score penalty).`);
-          setTimeout(() => setBannerNotice(null), 3000);
-        })
-        .catch(err => {
-          sound.playError();
-          setBannerNotice((err as Error).message || 'Failed to unlock hint with credits.');
-          setTimeout(() => setBannerNotice(null), 3500);
-        });
+      const res = await unlockHintWithTokens(userProfile, hintId, tokenCost);
+      if (res.success) {
+        sound.playSuccess();
+        showToast(res.message);
+      } else {
+        sound.playError();
+        showToast(res.message);
+      }
     } else {
       if (guestTokens < tokenCost) {
         sound.playError();
-        setBannerNotice(`Insufficient credits. You have ${guestTokens} credits. Register or get more tokens!`);
-        setTimeout(() => setBannerNotice(null), 3500);
+        showToast('Insufficient Cyber Credits. Open the Store to acquire credits.');
         return;
       }
-      if (!guestUnlockedHints.includes(hintId)) {
-        setGuestTokens(prev => Math.max(0, prev - tokenCost));
-        setGuestUnlockedHints(prev => [...prev, hintId]);
-        sound.playHint();
-        setBannerNotice(`Hint unlocked via ${tokenCost} Cyber Credits (0 score penalty).`);
-        setTimeout(() => setBannerNotice(null), 3000);
-      }
+      const newTokens = guestTokens - tokenCost;
+      const newHints = [...guestHints, hintId];
+      setGuestTokens(newTokens);
+      setGuestHints(newHints);
+      localStorage.setItem('cyberstrike_guest_tokens', newTokens.toString());
+      localStorage.setItem('cyberstrike_guest_hints', JSON.stringify(newHints));
+      sound.playSuccess();
+      showToast(`Hint unlocked with ${tokenCost} Cyber Credits (Zero score penalty preserved).`);
     }
   };
 
-  const handleToggleSound = () => {
-    const next = !soundEnabled;
-    setSoundEnabled(next);
-    sound.enabled = next;
+  // Auth Submit
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    sound.playClick();
+    setAuthError(null);
+    setAuthLoading(true);
+
+    try {
+      if (authMode === 'login') {
+        await loginPlayer(authEmail, authPassword);
+        showToast('Authenticated successfully.');
+      } else {
+        if (!authUsername.trim()) {
+          setAuthError('Callsign/Username is required.');
+          setAuthLoading(false);
+          return;
+        }
+        await registerPlayer(authEmail, authPassword, authUsername.trim());
+        showToast(`Operative @${authUsername.trim()} registered! +250 Welcome Credits added.`);
+      }
+      setAuthModalOpen(false);
+      setAuthEmail('');
+      setAuthPassword('');
+      setAuthUsername('');
+    } catch (err: unknown) {
+      sound.playError();
+      const error = err as Error;
+      setAuthError(error.message || 'Authentication error.');
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   const handleLogout = async () => {
     sound.playClick();
     await logoutPlayer();
-    setUserProfile(null);
-    setCurrentTab('challenges');
-    setBannerNotice('Successfully signed out of session.');
-    setTimeout(() => setBannerNotice(null), 3000);
+    showToast('Signed out of session.');
   };
 
-  // Compute daily challenge operation status
-  const dailyOpInfo = useMemo(() => {
-    return getDailyOpInfo(challenges, userProfile);
-  }, [challenges, userProfile]);
-
-  // Filtered challenges
-  const filteredChallenges = useMemo(() => {
-    return challenges.filter(c => {
-      if (isDailyFilterActive && !c.isDaily && c.id !== dailyOpInfo.challengeId) {
-        return false;
-      }
-      const matchCat = selectedCategory === 'All' || c.category === selectedCategory;
-      const matchDiff = selectedDifficulty === 'All' || c.difficulty === selectedDifficulty;
-      const matchSearch =
-        c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchCat && matchDiff && matchSearch;
-    });
-  }, [challenges, selectedCategory, selectedDifficulty, searchQuery, isDailyFilterActive, dailyOpInfo.challengeId]);
-
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col font-sans">
-      {/* 3-Zone Top Bar */}
-      <Header
-        currentTab={currentTab}
-        onSelectTab={setCurrentTab}
-        userProfile={userProfile}
-        userRank={userRank}
-        onOpenWorkbench={() => setIsWorkbenchOpen(true)}
-        onQuickSubmitFlag={handleQuickSubmit}
-        soundEnabled={soundEnabled}
-        onToggleSound={handleToggleSound}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-        onLogout={handleLogout}
-        onOpenTokenStore={() => setIsTokenStoreOpen(true)}
-        onOpenTop5Podium={() => setIsTop5PodiumOpen(true)}
-      />
-
-      {/* Temporary Alert Banner */}
-      {bannerNotice && (
-        <div className="bg-emerald-950/80 border-b border-emerald-500/40 px-4 py-2 text-center text-xs font-mono text-emerald-300 animate-in fade-in">
-          {bannerNotice}
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-5 right-5 z-50 p-4 bg-slate-900 border border-emerald-500/60 rounded-xl shadow-2xl flex items-center gap-3 text-xs font-mono text-white animate-in slide-in-from-bottom duration-200">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {/* Unauthenticated Encouragement Banner */}
-        {!userProfile && (
-          <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+      {/* Global Navigation Header */}
+      <Header
+        currentTab={currentTab}
+        onSelectTab={t => {
+          sound.playClick();
+          setCurrentTab(t);
+        }}
+        userProfile={userProfile}
+        userRank={userRank}
+        onOpenWorkbench={() => setWorkbenchOpen(true)}
+        onQuickSubmitFlag={handleQuickSubmitFlag}
+        soundEnabled={soundEnabled}
+        onToggleSound={() => {
+          const next = !soundEnabled;
+          setSoundEnabled(next);
+          sound.toggle();
+        }}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        onLogout={handleLogout}
+        onOpenTokenStore={() => setTokenStoreOpen(true)}
+        onOpenTop5Podium={() => setPodiumOpen(true)}
+      />
+
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Hardcore Mode Banner Alert */}
+        {hardcoreMode && (
+          <div className="p-4 bg-gradient-to-r from-rose-950/80 via-slate-900 to-slate-950 border border-rose-500/60 rounded-2xl flex items-center justify-between gap-4 shadow-2xl animate-pulse font-mono text-xs">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                <Sparkles className="w-4 h-4" />
+              <div className="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0">
+                <Skull className="w-5 h-5" />
               </div>
-              <div className="space-y-0.5">
-                <div className="text-xs font-bold text-white">Join the Live Competitive Scoreboard</div>
-                <div className="text-[11px] text-slate-400">
-                  Register with a username & password to securely persist your progress, solves, and real-time rankings in Firestore.
-                </div>
+              <div>
+                <span className="font-extrabold text-rose-300 uppercase tracking-wider">
+                  Hardcore Competitive Mode Active
+                </span>
+                <p className="text-[11px] text-slate-300">
+                  Hints are restricted. Exploit parameters are unguided. Captures earn +25% bonus points and +50% Cyber Credits!
+                </p>
               </div>
             </div>
-
             <button
               onClick={() => {
                 sound.playClick();
-                setIsAuthModalOpen(true);
+                setHardcoreMode(false);
               }}
-              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shadow"
+              className="px-3 py-1.5 rounded-lg bg-slate-900 border border-rose-500/40 text-rose-300 hover:text-white text-xs shrink-0"
             >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Create Account / Log In</span>
+              Exit Hardcore
             </button>
           </div>
         )}
 
-        {/* Navigation Tab: CHALLENGES */}
+        {/* TAB 1: OPERATIONS / CHALLENGES */}
         {currentTab === 'challenges' && (
           <div className="space-y-6">
-            {/* Daily Operation Special Mission Banner */}
-            <DailyOpBanner
-              dailyInfo={dailyOpInfo}
-              userProfile={userProfile}
-              onLaunchDaily={ch => {
-                sound.playClick();
-                setActiveChallenge(ch);
-              }}
-              onFilterDailyOps={() => {
-                setIsDailyFilterActive(prev => !prev);
-              }}
-              isDailyFilterActive={isDailyFilterActive}
-            />
-
-            {/* Arena Status & Telemetry Banner */}
-            <div className="p-6 bg-slate-950 border border-slate-800 rounded-xl space-y-4 shadow-xl">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                    <span>Live CTF Challenge Matrix</span>
-                    {userProfile?.role === 'admin' && (
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                        ADMIN ACCESS
-                      </span>
-                    )}
-                  </h1>
-                  <p className="text-xs text-slate-400">
-                    Solve real sandboxed vulnerabilities across Web, Crypto, Reverse, Forensics, and Pwn.
-                  </p>
-                </div>
-
-                {/* Score & Rank Metrics with Tabular Numbers */}
-                <div className="flex items-center gap-4 text-xs font-mono">
-                  <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg">
-                    <div className="text-slate-500 text-[10px] uppercase">Score</div>
-                    <div className="text-emerald-400 font-bold text-base tabular-nums">
-                      {userProfile?.score ?? 0} pts
-                    </div>
-                  </div>
-                  <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg">
-                    <div className="text-slate-500 text-[10px] uppercase">Solves</div>
-                    <div className="text-slate-100 font-bold text-base tabular-nums">
-                      {solvedIds.length} / {challenges.length}
-                    </div>
-                  </div>
-                  {userProfile && (
-                    <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg">
-                      <div className="text-slate-500 text-[10px] uppercase">Daily Streak</div>
-                      <div className="text-orange-400 font-bold text-base tabular-nums flex items-center gap-1">
-                        <Flame className="w-3.5 h-3.5 fill-orange-400 text-orange-400" />
-                        <span>{userProfile.dailyStreak || 0}d</span>
-                      </div>
-                    </div>
-                  )}
-                  <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg">
-                    <div className="text-slate-500 text-[10px] uppercase">Live Rank</div>
-                    <div className="text-amber-400 font-bold text-base tabular-nums">
-                      #{userRank}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Category Breakdown Progress */}
-              <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center gap-4 text-xs text-slate-400 font-mono">
-                <span className="text-[11px] text-slate-500 uppercase">Domain Coverage:</span>
-                {(['Web', 'Crypto', 'Reverse', 'Forensics', 'Pwn'] as Category[]).map(cat => {
-                  const solvedInCat = challenges.filter(c => c.category === cat && solvedIds.includes(c.id)).length;
-                  const totalInCat = challenges.filter(c => c.category === cat).length;
-                  return (
-                    <div key={cat} className="flex items-center gap-1.5">
-                      <span className="text-slate-300 font-sans">{cat}:</span>
-                      <span className="text-emerald-400 font-bold tabular-nums">
-                        {solvedInCat}/{totalInCat}
-                      </span>
-                    </div>
+            {/* Daily Operation Showcase */}
+            {dailyOp.challenge && (
+              <DailyOpBanner
+                dailyOp={dailyOp}
+                onSelectChallenge={() => setActiveChallenge(dailyOp.challenge)}
+                isFilterActive={selectedCategory === dailyOp.challenge.category}
+                onToggleFilter={() => {
+                  sound.playClick();
+                  setSelectedCategory(
+                    selectedCategory === dailyOp.challenge.category ? 'All' : dailyOp.challenge.category
                   );
-                })}
-              </div>
-            </div>
+                }}
+              />
+            )}
 
-            {/* Filter & Search Bar */}
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-              {/* Category & Difficulty Filter Tabs */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Category Filter Tabs */}
-                <div className="flex items-center gap-1 p-1 bg-slate-950 border border-slate-800 rounded-lg overflow-x-auto text-xs">
+            {/* Filter and Control Bar */}
+            <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-2xl space-y-3 font-mono text-xs shadow-lg backdrop-blur-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Search operations by vulnerability, title, or technique..."
+                    className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-700/80 rounded-xl text-slate-200 text-xs focus:outline-none focus:border-emerald-500"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-2.5 text-slate-500 hover:text-white"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+
+                {/* Hardcore Mode Toggle */}
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    setHardcoreMode(prev => !prev);
+                  }}
+                  className={`px-3 py-2 rounded-xl border flex items-center gap-2 font-bold transition-all shadow-sm ${
+                    hardcoreMode
+                      ? 'bg-rose-950/80 border-rose-500 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
+                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Skull className={`w-4 h-4 ${hardcoreMode ? 'text-rose-400 fill-rose-500/20' : ''}`} />
+                  <span>Hardcore Mode: {hardcoreMode ? 'ON (+25% PTS)' : 'OFF'}</span>
+                </button>
+              </div>
+
+              {/* Categorical & Difficulty Filter Pills */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-800/80">
+                {/* Category Pills */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] text-slate-500 mr-1">Sector:</span>
                   {(['All', 'Web', 'Crypto', 'Reverse', 'Forensics', 'Pwn'] as const).map(cat => (
                     <button
                       key={cat}
@@ -435,216 +491,218 @@ export default function App() {
                         sound.playClick();
                         setSelectedCategory(cat);
                       }}
-                      className={`px-2.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
                         selectedCategory === cat
-                          ? 'bg-slate-800 text-emerald-400 shadow-sm border border-slate-700'
-                          : 'text-slate-400 hover:text-slate-200'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
                       }`}
                     >
                       {cat}
                     </button>
                   ))}
-                  <button
-                    onClick={() => {
-                      sound.playClick();
-                      setIsDailyFilterActive(prev => !prev);
-                    }}
-                    className={`px-2.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-                      isDailyFilterActive
-                        ? 'bg-amber-500/20 text-amber-300 shadow-sm border border-amber-500/50'
-                        : 'text-slate-400 hover:text-amber-300'
-                    }`}
-                    title="Filter challenges to daily operations"
-                  >
-                    <Zap className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Daily Ops</span>
-                  </button>
                 </div>
 
-                {/* Difficulty Filter Tabs */}
-                <div className="flex items-center gap-1 p-1 bg-slate-950 border border-slate-800 rounded-lg overflow-x-auto text-xs">
-                  {(['All', 'Easy', 'Medium', 'Hard', 'Insane'] as const).map(diff => (
+                {/* Difficulty Filter */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] text-slate-500 mr-1">Difficulty:</span>
+                  {(['All', 'Medium', 'Hard', 'Insane', 'Nightmare'] as const).map(diff => (
                     <button
                       key={diff}
                       onClick={() => {
                         sound.playClick();
                         setSelectedDifficulty(diff);
                       }}
-                      className={`px-2.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
                         selectedDifficulty === diff
-                          ? diff === 'Insane'
-                            ? 'bg-purple-950/80 text-purple-300 shadow-sm border border-purple-500/50'
-                            : diff === 'Hard'
-                            ? 'bg-rose-950/80 text-rose-300 shadow-sm border border-rose-500/50'
-                            : 'bg-slate-800 text-emerald-400 shadow-sm border border-slate-700'
-                          : 'text-slate-400 hover:text-slate-200'
+                          ? diff === 'Nightmare'
+                            ? 'bg-rose-600 text-white font-extrabold shadow-[0_0_10px_rgba(244,63,94,0.5)]'
+                            : 'bg-indigo-600 text-white'
+                          : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
                       }`}
                     >
-                      {diff === 'Insane' ? '⚡ Insane' : diff}
+                      {diff}
                     </button>
                   ))}
                 </div>
-              </div>
 
-              {/* Search Bar */}
-              <div className="relative min-w-[220px]">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Filter challenges or tags..."
-                  className="w-full pl-8 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                />
-                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2" />
+                {/* Status Filter */}
+                <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-xs">
+                  {(['All', 'Solved', 'Unsolved'] as const).map(st => (
+                    <button
+                      key={st}
+                      onClick={() => {
+                        sound.playClick();
+                        setStatusFilter(st);
+                      }}
+                      className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors ${
+                        statusFilter === st ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* Challenges Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredChallenges.map(challenge => {
-                const isSolved = solvedIds.includes(challenge.id);
+              {filteredChallenges.map(ch => {
+                const isSolved = solvedIds.includes(ch.id);
+                const isNightmare = ch.difficulty === 'Nightmare';
+                const isInsane = ch.difficulty === 'Insane';
+
                 return (
                   <div
-                    key={challenge.id}
+                    key={ch.id}
                     onClick={() => {
                       sound.playClick();
-                      setActiveChallenge(challenge);
+                      setActiveChallenge(ch);
                     }}
-                    className={`group p-5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                    className={`group relative p-5 bg-slate-900 border rounded-2xl flex flex-col justify-between transition-all duration-200 cursor-pointer shadow-lg hover:-translate-y-0.5 ${
                       isSolved
-                        ? 'bg-slate-950/60 border-emerald-500/40 hover:border-emerald-500/60'
-                        : 'bg-slate-950 border-slate-800 hover:border-slate-700 hover:bg-slate-900/40'
+                        ? 'border-emerald-500/40 bg-emerald-950/10 hover:border-emerald-400'
+                        : isNightmare
+                        ? 'border-rose-500/50 bg-gradient-to-br from-rose-950/20 via-slate-900 to-slate-950 hover:border-rose-400 hover:shadow-[0_0_20px_rgba(244,63,94,0.2)]'
+                        : isInsane
+                        ? 'border-purple-500/40 hover:border-purple-400'
+                        : 'border-slate-800 hover:border-slate-700'
                     }`}
                   >
                     <div className="space-y-3">
-                      {/* Zero-Pill Unboxed Metadata Header */}
-                      <div className="flex items-center justify-between text-xs text-slate-400">
+                      {/* Top Badges */}
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          {ch.category}
+                        </span>
+
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-emerald-400">{challenge.category}</span>
-                          <span aria-hidden="true">·</span>
                           <span
-                            className={
-                              challenge.difficulty === 'Easy'
-                                ? 'text-emerald-300'
-                                : challenge.difficulty === 'Medium'
-                                ? 'text-amber-300'
-                                : challenge.difficulty === 'Hard'
-                                ? 'text-rose-300'
-                                : 'text-purple-300 font-bold flex items-center gap-1'
-                            }
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                              isNightmare
+                                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse'
+                                : isInsane
+                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                                : ch.difficulty === 'Hard'
+                                ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                                : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                            }`}
                           >
-                            {challenge.difficulty === 'Insane' && <span>⚡</span>}
-                            {challenge.difficulty}
+                            {ch.difficulty}
+                          </span>
+
+                          <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300 font-bold">
+                            {ch.points} pts
                           </span>
                         </div>
-                        <span className="font-mono text-slate-200 font-bold tabular-nums">
-                          {challenge.points} pts
-                        </span>
                       </div>
 
-                      {/* Title */}
-                      <h3 className="text-base font-bold text-slate-100 group-hover:text-emerald-400 transition-colors flex items-center justify-between">
-                        <span>{challenge.title}</span>
-                        {isSolved && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-                      </h3>
+                      {/* Title & Author */}
+                      <div>
+                        <h3 className="text-base font-bold text-white group-hover:text-emerald-400 transition-colors flex items-center gap-2">
+                          <span>{ch.title}</span>
+                          {isSolved && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+                        </h3>
+                        <p className="text-xs text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                          {ch.description}
+                        </p>
+                      </div>
 
-                      {/* Description excerpt */}
-                      <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                        {challenge.description}
-                      </p>
-
-                      {/* Tag hints */}
+                      {/* Tags */}
                       <div className="flex flex-wrap gap-1.5 pt-1">
-                        {challenge.tags.slice(0, 3).map(tag => (
+                        {ch.tags.slice(0, 3).map(tag => (
                           <span
                             key={tag}
-                            className="text-[11px] font-mono text-slate-500 bg-slate-900 px-2 py-0.5 rounded border border-slate-800"
+                            className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-950 text-slate-400 border border-slate-800"
                           >
-                            {tag}
+                            #{tag}
                           </span>
                         ))}
                       </div>
                     </div>
 
-                    {/* Card Footer: Metadata + Action */}
-                    <div className="pt-4 mt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
-                      <span className="font-mono text-[11px]">{challenge.solvesCount} solves</span>
-                      <button
-                        className={`font-medium flex items-center gap-1.5 transition-colors ${
-                          isSolved
-                            ? 'text-emerald-400 hover:text-emerald-300'
-                            : 'text-slate-300 group-hover:text-white'
-                        }`}
-                      >
-                        <span>{isSolved ? 'Review Sandbox' : 'Launch Target'}</span>
-                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                      </button>
+                    {/* Bottom stats & Launch Trigger */}
+                    <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-400">
+                      <div className="flex items-center gap-2">
+                        <span>{ch.solvesCount} solves</span>
+                        <span aria-hidden="true">·</span>
+                        <span>@{ch.author}</span>
+                      </div>
+
+                      <span className="text-emerald-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform font-bold">
+                        <span>{isSolved ? 'Review' : 'Deploy Target'}</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </span>
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            {filteredChallenges.length === 0 && (
+              <div className="p-12 text-center text-slate-500 bg-slate-900 border border-slate-800 rounded-2xl space-y-2">
+                <Shield className="w-8 h-8 text-slate-600 mx-auto" />
+                <div className="font-bold text-slate-300">No Operations Match the Filter</div>
+                <p className="text-xs text-slate-500">Try loosening your search query or sector filters.</p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Navigation Tab: SCOREBOARD */}
+        {/* TAB 2: SCOREBOARD */}
         {currentTab === 'scoreboard' && (
           <LeaderboardView
             teams={teams}
             userProfile={userProfile}
-            onOpenTop5Podium={() => setIsTop5PodiumOpen(true)}
+            onOpenTop5Podium={() => setPodiumOpen(true)}
           />
         )}
 
-        {/* Navigation Tab: SQUADS / TEAMS */}
+        {/* TAB 3: LIVE FEED */}
+        {currentTab === 'activity' && <LiveFeedView activities={activities} />}
+
+        {/* TAB 4: SQUADS / TEAMS */}
         {currentTab === 'teams' && (
           <TeamHubView
             userProfile={userProfile}
             allChallenges={challenges}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
-            onNotice={msg => {
-              setBannerNotice(msg);
-              setTimeout(() => setBannerNotice(null), 5000);
-            }}
+            onOpenAuth={() => setAuthModalOpen(true)}
+            onNotice={showToast}
             teamsLeaderboard={teams}
           />
         )}
 
-        {/* Navigation Tab: ACTIVITY FEED */}
-        {currentTab === 'activity' && <LiveFeedView activities={activities} />}
-
-        {/* Navigation Tab: RULES */}
+        {/* TAB 5: RULES OF ENGAGEMENT */}
         {currentTab === 'rules' && <RulesView />}
 
-        {/* Navigation Tab: SYSTEM SHELL */}
+        {/* TAB 6: ADMIN CONSOLE */}
+        {currentTab === 'admin' && <AdminDashboard challenges={challenges} />}
+
+        {/* TAB 7: SYSTEM SHELL COMPONENT */}
         {currentTab === 'shell' && (
           <SystemShell
             challenges={challenges}
             userProfile={userProfile}
-            onSubmitFlag={handleFlagSubmission}
+            onSubmitFlag={handleFlagSubmit}
             onOpenChallenge={ch => setActiveChallenge(ch)}
           />
         )}
-
-        {/* Navigation Tab: ADMIN DASHBOARD */}
-        {currentTab === 'admin' && userProfile?.role === 'admin' && (
-          <AdminDashboard challenges={challenges} />
-        )}
       </main>
 
-      {/* Challenge Target Modal */}
+      {/* MODAL 1: Challenge Modal with Interactive Sandboxes */}
       {activeChallenge && (
         <ChallengeModal
           challenge={activeChallenge}
           isSolved={solvedIds.includes(activeChallenge.id)}
-          unlockedHints={unlockedHints}
-          userTokens={userProfile ? (userProfile.tokens ?? 250) : guestTokens}
-          hasRadarLicense={Boolean(userProfile?.hasRadarLicense)}
+          unlockedHints={unlockedHintIds}
+          userTokens={userProfile ? userProfile.tokens ?? 250 : guestTokens}
+          hasRadarLicense={Boolean(userProfile?.hasRadarLicense || guestInventory.includes('radar-license'))}
           onClose={() => setActiveChallenge(null)}
-          onSubmitFlag={handleFlagSubmission}
+          onSubmitFlag={handleFlagSubmit}
           onUnlockHint={handleUnlockHint}
           onUnlockHintWithTokens={handleUnlockHintWithTokens}
-          onOpenTokenStore={() => setIsTokenStoreOpen(true)}
+          onOpenTokenStore={() => setTokenStoreOpen(true)}
           onOpenShell={() => {
             setActiveChallenge(null);
             setCurrentTab('shell');
@@ -652,54 +710,147 @@ export default function App() {
         />
       )}
 
-      {/* Multi-Tool Cyber Workbench Modal */}
-      <CyberWorkbench
-        isOpen={isWorkbenchOpen}
-        onClose={() => setIsWorkbenchOpen(false)}
-      />
+      {/* MODAL 2: Cyber Workbench */}
+      <CyberWorkbench isOpen={workbenchOpen} onClose={() => setWorkbenchOpen(false)} />
 
-      {/* Cyber Credits Armory & Exchange Modal */}
+      {/* MODAL 3: Cyber Credits Token Store & Armory */}
       <TokenStoreModal
-        isOpen={isTokenStoreOpen}
-        onClose={() => setIsTokenStoreOpen(false)}
+        isOpen={tokenStoreOpen}
+        onClose={() => setTokenStoreOpen(false)}
         userProfile={userProfile}
-        onOpenAuth={() => {
-          setIsTokenStoreOpen(false);
-          setIsAuthModalOpen(true);
+        onOpenAuth={() => setAuthModalOpen(true)}
+        onSuccessNotice={showToast}
+        guestTokens={guestTokens}
+        onUpdateGuestTokens={tokens => {
+          setGuestTokens(tokens);
+          localStorage.setItem('cyberstrike_guest_tokens', tokens.toString());
         }}
-        onSuccessNotice={msg => {
-          setBannerNotice(msg);
-          setTimeout(() => setBannerNotice(null), 5000);
+        guestInventory={guestInventory}
+        onUpdateGuestInventory={id => {
+          const updated = [...guestInventory, id];
+          setGuestInventory(updated);
+          localStorage.setItem('cyberstrike_guest_inventory', JSON.stringify(updated));
         }}
       />
 
-      {/* Season Top 5 Championship Bounty & Rewards Modal */}
+      {/* MODAL 4: Top 5 Podium Season Bounty */}
       <Top5PodiumModal
-        isOpen={isTop5PodiumOpen}
-        onClose={() => setIsTop5PodiumOpen(false)}
+        isOpen={podiumOpen}
+        onClose={() => setPodiumOpen(false)}
         userProfile={userProfile}
         userRank={userRank}
         teamsLeaderboard={teams}
-        onOpenAuth={() => {
-          setIsTop5PodiumOpen(false);
-          setIsAuthModalOpen(true);
-        }}
-        onSuccessNotice={msg => {
-          setBannerNotice(msg);
-          setTimeout(() => setBannerNotice(null), 5000);
-        }}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        onSuccessNotice={showToast}
       />
 
-      {/* User Registration & Login Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onSuccess={profile => {
-          setUserProfile(profile);
-          setBannerNotice(`Welcome operator @${profile.username}! Connected to live database.`);
-          setTimeout(() => setBannerNotice(null), 4000);
-        }}
-      />
+      {/* MODAL 5: Auth Sign-In / Register Modal */}
+      {authModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md font-mono text-xs animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                  {authMode === 'login' ? 'Operative Identification' : 'Enlist Operative'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setAuthModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {authError && (
+              <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs">
+                {authError}
+              </div>
+            )}
+
+            <form onSubmit={handleAuthSubmit} className="space-y-3">
+              {authMode === 'register' && (
+                <div>
+                  <label className="text-slate-400 text-[11px]">Callsign / Username:</label>
+                  <input
+                    type="text"
+                    required
+                    value={authUsername}
+                    onChange={e => setAuthUsername(e.target.value)}
+                    className="w-full mt-1 p-2 bg-slate-950 border border-slate-700 rounded text-slate-200 text-xs focus:outline-none focus:border-emerald-500"
+                    placeholder="e.g. CipherPhantom"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="text-slate-400 text-[11px]">Secure Email Address:</label>
+                <input
+                  type="email"
+                  required
+                  value={authEmail}
+                  onChange={e => setAuthEmail(e.target.value)}
+                  className="w-full mt-1 p-2 bg-slate-950 border border-slate-700 rounded text-slate-200 text-xs focus:outline-none focus:border-emerald-500"
+                  placeholder="agent@cyberstrike.io"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-400 text-[11px]">Passcode / Password:</label>
+                <input
+                  type="password"
+                  required
+                  value={authPassword}
+                  onChange={e => setAuthPassword(e.target.value)}
+                  className="w-full mt-1 p-2 bg-slate-950 border border-slate-700 rounded text-slate-200 text-xs focus:outline-none focus:border-emerald-500"
+                  placeholder="••••••••••••"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs transition-colors shadow flex items-center justify-center gap-2 mt-2"
+              >
+                <span>{authLoading ? 'Verifying Credentials...' : authMode === 'login' ? 'Authenticate' : 'Complete Enlistment'}</span>
+              </button>
+            </form>
+
+            <div className="pt-2 border-t border-slate-800/80 text-center text-slate-400 text-[11px]">
+              {authMode === 'login' ? (
+                <span>
+                  New recruit?{' '}
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      setAuthMode('register');
+                      setAuthError(null);
+                    }}
+                    className="text-emerald-400 hover:underline font-bold"
+                  >
+                    Enlist Call-Sign
+                  </button>
+                </span>
+              ) : (
+                <span>
+                  Existing operator?{' '}
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      setAuthMode('login');
+                      setAuthError(null);
+                    }}
+                    className="text-emerald-400 hover:underline font-bold"
+                  >
+                    Identify Session
+                  </button>
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

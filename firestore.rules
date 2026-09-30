@@ -22,10 +22,6 @@ service cloud.firestore {
       );
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
     // Default deny
     match /{document=**} {
       allow read, write: if false;
@@ -58,37 +54,33 @@ service cloud.firestore {
         request.resource.data.memberIds.hasAny([request.auth.uid]) ||
         isAdmin()
       );
-      allow delete: if isSignedIn() && (
-        resource.data.captainId == request.auth.uid || isAdmin()
-      );
+      allow delete: if isSignedIn() && (resource.data.captainId == request.auth.uid || isAdmin());
     }
 
-    // Dynamic CTF Challenges
+    // Challenges catalog
     match /challenges/{challengeId} {
       allow read: if true;
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (
-        isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['solvesCount', 'updatedAt'])
-      );
+      allow create, update, delete: if isAdmin();
     }
 
-    // Live Activity Stream
+    // Public activity event stream
     match /activity/{activityId} {
       allow read: if true;
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }
 
-    // Daily Challenge configuration and rotation
-    match /daily_config/{configId} {
+    // Daily ops rotational schedule
+    match /daily_ops/{opId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update, delete: if true;
     }
 
-    // Admin list
-    match /admins/{userId} {
+    // Transactions log
+    match /transactions/{txId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
   }
 }

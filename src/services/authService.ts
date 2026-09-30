@@ -1,270 +1,181 @@
 import {
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
   signOut,
-  updateProfile,
-  onAuthStateChanged,
-  User as FirebaseUser
+  onAuthStateChanged
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  onSnapshot
+} from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase/config';
-import { UserProfile, UserRole, Category } from '../types/ctf';
+import { UserProfile } from '../types/ctf';
 
-const ADMIN_EMAIL = 'cindylouis2228@gmail.com';
+const USERS_COLLECTION = 'users';
+const TEAMS_COLLECTION = 'teams';
 
-function getRoleForUser(email: string | null | undefined): UserRole {
-  return email === ADMIN_EMAIL ? 'admin' : 'player';
-}
-
-function cleanUsername(raw: string): string {
-  return raw.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
-}
-
-export function formatAuthEmail(identifier: string): string {
-  if (identifier.includes('@')) {
-    return identifier.trim().toLowerCase();
-  }
-  const sanitized = cleanUsername(identifier).toLowerCase();
-  return `${sanitized || 'player'}@ctf-arena.local`;
-}
-
-export async function registerPlayer(
-  usernameInput: string,
-  passwordInput: string,
-  emailInput?: string
-): Promise<UserProfile> {
-  const username = cleanUsername(usernameInput);
-  if (username.length < 2) {
-    throw new Error('Username must be at least 2 alphanumeric characters.');
-  }
-  if (passwordInput.length < 6) {
-    throw new Error('Password must be at least 6 characters.');
-  }
-
-  const emailToUse = emailInput && emailInput.includes('@')
-    ? emailInput.trim().toLowerCase()
-    : formatAuthEmail(username);
-
-  try {
-    const cred = await createUserWithEmailAndPassword(auth, emailToUse, passwordInput);
-    const user = cred.user;
-
-    await updateProfile(user, { displayName: username });
-
-    const role = getRoleForUser(user.email || emailToUse);
-
-    const defaultProfile: UserProfile = {
-      uid: user.uid,
-      username: username,
-      email: user.email || emailToUse,
-      score: 0,
-      tokens: 250,
-      solvesCount: 0,
-      solvedChallengeIds: [],
-      unlockedHintIds: [],
-      categoryBreakdown: {
-        Web: 0,
-        Crypto: 0,
-        Reverse: 0,
-        Forensics: 0,
-        Pwn: 0
-      },
-      role,
-      lastSolveTime: 'Never',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    const userDocRef = doc(db, 'users', user.uid);
-    await setDoc(userDocRef, defaultProfile);
-
-    // If admin, also store in /admins collection
-    if (role === 'admin') {
-      try {
-        await setDoc(doc(db, 'admins', user.uid), {
-          email: defaultProfile.email,
-          username: defaultProfile.username,
-          assignedAt: new Date().toISOString()
-        });
-      } catch {
-        // Continue if admin collection already initialized or handled by rule
-      }
+export function subscribeToAuthProfile(callback: (profile: UserProfile | null) => void) {
+  return onAuthStateChanged(auth, async user => {
+    if (!user) {
+      callback(null);
+      return;
     }
 
-    return defaultProfile;
-  } catch (err: unknown) {
-    const errObj = err as { code?: string; message?: string };
-    if (errObj.code === 'auth/email-already-in-use') {
-      throw new Error('Username or email is already registered. Try logging in.');
-    }
-    if (errObj.code === 'auth/weak-password') {
-      throw new Error('Password is too weak. Please use at least 6 characters.');
-    }
-    throw new Error(errObj.message || 'Registration failed.');
-  }
-}
-
-export async function loginPlayer(identifier: string, passwordInput: string): Promise<UserProfile> {
-  const emailToUse = formatAuthEmail(identifier);
-  try {
-    const cred = await signInWithEmailAndPassword(auth, emailToUse, passwordInput);
-    const user = cred.user;
-
-    // Fetch user profile from Firestore
-    const userDocRef = doc(db, 'users', user.uid);
-    const snap = await getDoc(userDocRef);
-
-    if (snap.exists()) {
-      const data = snap.data() as UserProfile;
-      return { ...data, tokens: data.tokens ?? 250 };
-    } else {
-      // Re-create profile if missing
-      const username = user.displayName || identifier.split('@')[0];
-      const role = getRoleForUser(user.email || emailToUse);
-
-      const newProfile: UserProfile = {
-        uid: user.uid,
-        username,
-        email: user.email || emailToUse,
-        score: 0,
-        tokens: 250,
-        solvesCount: 0,
-        solvedChallengeIds: [],
-        unlockedHintIds: [],
-        categoryBreakdown: { Web: 0, Crypto: 0, Reverse: 0, Forensics: 0, Pwn: 0 },
-        role,
-        lastSolveTime: 'Never',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      await setDoc(userDocRef, newProfile);
-      return newProfile;
-    }
-  } catch (err: unknown) {
-    const errObj = err as { code?: string; message?: string };
-    if (
-      errObj.code === 'auth/user-not-found' ||
-      errObj.code === 'auth/wrong-password' ||
-      errObj.code === 'auth/invalid-credential'
-    ) {
-      throw new Error('Invalid username/email or password.');
-    }
-    throw new Error(errObj.message || 'Login failed.');
-  }
-}
-
-export async function loginWithGoogle(): Promise<UserProfile> {
-  try {
-    const provider = new GoogleAuthProvider();
-    const cred = await signInWithPopup(auth, provider);
-    const user = cred.user;
-
-    const userDocRef = doc(db, 'users', user.uid);
-    const snap = await getDoc(userDocRef);
-
-    if (snap.exists()) {
-      const data = snap.data() as UserProfile;
-      return { ...data, tokens: data.tokens ?? 250 };
-    } else {
-      const username = user.displayName?.replace(/\s+/g, '_') || user.email?.split('@')[0] || 'Operator';
-      const role = getRoleForUser(user.email);
-
-      const newProfile: UserProfile = {
-        uid: user.uid,
-        username,
-        email: user.email || '',
-        score: 0,
-        tokens: 250,
-        solvesCount: 0,
-        solvedChallengeIds: [],
-        unlockedHintIds: [],
-        categoryBreakdown: { Web: 0, Crypto: 0, Reverse: 0, Forensics: 0, Pwn: 0 },
-        role,
-        lastSolveTime: 'Never',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      await setDoc(userDocRef, newProfile);
-
-      if (role === 'admin') {
-        try {
-          await setDoc(doc(db, 'admins', user.uid), {
-            email: user.email,
-            username,
-            assignedAt: new Date().toISOString()
-          });
-        } catch {
-          // Ignore
+    try {
+      const userRef = doc(db, USERS_COLLECTION, user.uid);
+      const unsubDoc = onSnapshot(userRef, snap => {
+        if (snap.exists()) {
+          callback(snap.data() as UserProfile);
+        } else {
+          // Profile doc pending initialization
+          callback(null);
         }
-      }
-
-      return newProfile;
+      });
+      return () => unsubDoc();
+    } catch (err) {
+      handleFirestoreError(err, OperationType.GET, `${USERS_COLLECTION}/${user.uid}`);
+      callback(null);
     }
-  } catch (err: unknown) {
-    throw new Error((err as Error).message || 'Google sign-in failed.');
+  });
+}
+
+export async function registerPlayer(email: string, pass: string, username: string): Promise<UserProfile> {
+  const cleanEmail = email.trim();
+  const cleanUser = username.trim();
+
+  // Enforce unique username check
+  const q = query(collection(db, USERS_COLLECTION), where('username', '==', cleanUser));
+  const snap = await getDocs(q);
+  if (!snap.empty) {
+    throw new Error(`Username "${cleanUser}" is already taken by another operative.`);
   }
+
+  const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+  const uid = userCredential.user.uid;
+  const isBootstrapAdmin = cleanEmail.toLowerCase() === 'cindylouis2228@gmail.com';
+
+  const newProfile: UserProfile = {
+    uid,
+    username: cleanUser,
+    email: cleanEmail,
+    score: 0,
+    solvesCount: 0,
+    solvedChallengeIds: [],
+    unlockedHintIds: [],
+    tokens: 250, // 250 starting credits
+    categoryBreakdown: {
+      Web: 0,
+      Crypto: 0,
+      Reverse: 0,
+      Forensics: 0,
+      Pwn: 0
+    },
+    role: isBootstrapAdmin ? 'admin' : 'player',
+    dailyStreak: 0,
+    dailySolvesCount: 0,
+    inventory: [],
+    hasRadarLicense: false,
+    tokenBoosterCount: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  try {
+    await setDoc(doc(db, USERS_COLLECTION, uid), newProfile);
+    return newProfile;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.CREATE, `${USERS_COLLECTION}/${uid}`);
+    throw err;
+  }
+}
+
+export async function loginPlayer(email: string, pass: string): Promise<void> {
+  await signInWithEmailAndPassword(auth, email.trim(), pass);
 }
 
 export async function logoutPlayer(): Promise<void> {
   await signOut(auth);
 }
 
-export function subscribeToAuthProfile(
-  onProfile: (profile: UserProfile | null) => void
-): () => void {
-  let unsubscribeDoc: (() => void) | null = null;
+export async function createTeam(user: UserProfile, teamName: string, teamTag: string): Promise<string> {
+  const cleanName = teamName.trim();
+  const cleanTag = teamTag.trim().toUpperCase();
 
-  const unsubscribeAuth = onAuthStateChanged(auth, user => {
-    if (unsubscribeDoc) {
-      unsubscribeDoc();
-      unsubscribeDoc = null;
-    }
+  const q = query(collection(db, TEAMS_COLLECTION), where('name', '==', cleanName));
+  const snap = await getDocs(q);
+  if (!snap.empty) {
+    throw new Error(`Squad name "${cleanName}" is already registered.`);
+  }
 
-    if (!user) {
-      onProfile(null);
-      return;
-    }
-
-    const docRef = doc(db, 'users', user.uid);
-    unsubscribeDoc = onSnapshot(
-      docRef,
-      snap => {
-        if (snap.exists()) {
-          const data = snap.data() as UserProfile;
-          onProfile({ ...data, tokens: data.tokens ?? 250 });
-        } else {
-          // Default profile if not yet written
-          const username = user.displayName || user.email?.split('@')[0] || 'GuestOperator';
-          const role = getRoleForUser(user.email);
-
-          const stub: UserProfile = {
-            uid: user.uid,
-            username,
-            email: user.email || '',
-            score: 0,
-            tokens: 250,
-            solvesCount: 0,
-            solvedChallengeIds: [],
-            unlockedHintIds: [],
-            categoryBreakdown: { Web: 0, Crypto: 0, Reverse: 0, Forensics: 0, Pwn: 0 },
-            role,
-            lastSolveTime: 'Never',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          onProfile(stub);
-        }
-      },
-      error => {
-        handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
-      }
-    );
-  });
-
-  return () => {
-    unsubscribeAuth();
-    if (unsubscribeDoc) unsubscribeDoc();
+  const teamRef = doc(collection(db, TEAMS_COLLECTION));
+  const newTeam = {
+    id: teamRef.id,
+    name: cleanName,
+    avatar: cleanName.substring(0, 2).toUpperCase(),
+    teamTag: cleanTag,
+    captainId: user.uid,
+    memberIds: [user.uid],
+    memberCount: 1,
+    score: user.score,
+    solves: user.solvesCount,
+    lastSolveTime: user.lastSolveTime || 'Just now',
+    categoryBreakdown: user.categoryBreakdown,
+    createdAt: new Date().toISOString()
   };
+
+  try {
+    await setDoc(teamRef, newTeam);
+    await updateDoc(doc(db, USERS_COLLECTION, user.uid), {
+      teamId: teamRef.id,
+      teamName: cleanName,
+      teamTag: cleanTag,
+      isCaptain: true,
+      updatedAt: new Date().toISOString()
+    });
+    return teamRef.id;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.CREATE, `${TEAMS_COLLECTION}/${teamRef.id}`);
+    throw err;
+  }
+}
+
+export async function joinTeam(user: UserProfile, teamId: string): Promise<void> {
+  const teamRef = doc(db, TEAMS_COLLECTION, teamId);
+  const snap = await getDoc(teamRef);
+  if (!snap.exists()) {
+    throw new Error('Squad not found.');
+  }
+
+  const data = snap.data();
+  const memberIds: string[] = data.memberIds || [];
+  if (memberIds.includes(user.uid)) {
+    return;
+  }
+
+  memberIds.push(user.uid);
+  try {
+    await updateDoc(teamRef, {
+      memberIds,
+      memberCount: memberIds.length,
+      updatedAt: new Date().toISOString()
+    });
+
+    await updateDoc(doc(db, USERS_COLLECTION, user.uid), {
+      teamId,
+      teamName: data.name,
+      teamTag: data.teamTag,
+      isCaptain: false,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `${TEAMS_COLLECTION}/${teamId}`);
+    throw err;
+  }
 }

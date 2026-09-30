@@ -1,168 +1,101 @@
 import React, { useState } from 'react';
-import { Terminal, Shield, Play, CheckCircle2, AlertTriangle, Bug } from 'lucide-react';
+import { Terminal, Send, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { sound } from '../../utils/audio';
 
 interface Props {
   onFlagFound: (flag: string) => void;
 }
 
+const SECRET_FLAG = 'flag{r0p_ch41n_r3t2w1n_st4ck_sm4sh_8831}';
+
 export const Ret2WinSandbox: React.FC<Props> = ({ onFlagFound }) => {
-  const [paddingLength, setPaddingLength] = useState(40);
-  const [retAddress, setRetAddress] = useState('0x004011ba');
-  const [terminalOutput, setTerminalOutput] = useState<string>(
-    'gdb-peda$ checksec\n' +
-    'CANARY    : disabled\n' +
-    'FORTIFY   : disabled\n' +
-    'NX        : ENABLED\n' +
-    'PIE       : disabled\n' +
-    'RELRO     : Partial RELRO\n\n' +
-    'gdb-peda$ print win\n' +
-    '$1 = {<text variable, no debug info>} 0x4011ba <win>\n\n' +
-    'Ready for payload injection. Enter buffer offset and target function address.'
-  );
-  const [captured, setCaptured] = useState(false);
+  const [paddingLen, setPaddingLen] = useState<number>(0);
+  const [useRetGadget, setUseRetGadget] = useState<boolean>(false);
+  const [targetAddress, setTargetAddress] = useState<string>('');
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([
+    '[*] 64-bit ELF Binary: stack_vanguard',
+    '[*] Vulnerable function vuln() allocates 64-byte stack buffer.',
+    '[*] win() function address located at: 0x401196',
+    '[*] Notice: GLIBC Ubuntu x86_64 requires 16-byte stack alignment prior to system().'
+  ]);
 
-  const FLAG = 'flag{r3t2w1n_st4ck_sm4sh_x86_64_5521}';
-
-  const handleExecute = () => {
+  const handlePwn = () => {
     sound.playClick();
-    const cleanAddr = retAddress.trim().toLowerCase();
+    const newLogs = [...terminalLogs];
+    newLogs.push(`[>] Sending payload: ${paddingLen} bytes padding + ${useRetGadget ? '0x40101a (ret) + ' : ''}${targetAddress}`);
 
-    if (paddingLength === 40 && (cleanAddr === '0x4011ba' || cleanAddr === '0x004011ba')) {
-      sound.playSuccess();
-      setTerminalOutput(
-        `[+] Constructed exploit payload:\n` +
-        `    Padding: ${paddingLength} bytes ('A' * 40)\n` +
-        `    Saved RBP: Overwritten with 0x4141414141414141\n` +
-        `    Saved RIP: Diverted to 0x004011ba <win>\n\n` +
-        `[+] Executing binary with crafted input...\n` +
-        `[+] Hijacking instruction pointer...\n` +
-        `[+] In win() function:\n` +
-        `[+] System privilege elevated. Reading /flags/pwn.txt...\n\n` +
-        `FLAG CAPTURED: ${FLAG}`
-      );
-      setCaptured(true);
-      onFlagFound(FLAG);
-    } else if (paddingLength < 40) {
-      sound.playError();
-      setTerminalOutput(
-        `[-] Payload length (${paddingLength} bytes) failed to reach saved RIP offset.\n` +
-        `[-] Program exited normally (Code 0). Return address unchanged.`
-      );
-    } else if (paddingLength > 40) {
-      sound.playError();
-      setTerminalOutput(
-        `[-] Payload length exceeded 40 bytes before setting return pointer.\n` +
-        `[-] Segmentation fault (SIGSEGV) at unmapped address. Core dumped.`
-      );
+    if (paddingLen === 72 && targetAddress === '0x401196') {
+      if (!useRetGadget) {
+        sound.playError();
+        newLogs.push('[-] Process received SIGSEGV! Stack pointer RSP was not 16-byte aligned before movaps call.');
+        newLogs.push('[-] HINT: Prepend a dummy standalone "ret" gadget (0x40101a) to satisfy stack alignment!');
+      } else {
+        sound.playSuccess();
+        newLogs.push('[+] Saved RIP successfully redirected to win() with 16-byte aligned RSP!');
+        newLogs.push(`[+] ROOT SHELL SPAWNED! Flag: ${SECRET_FLAG}`);
+        onFlagFound(SECRET_FLAG);
+      }
     } else {
       sound.playError();
-      setTerminalOutput(
-        `[-] Return pointer redirected to invalid or unmapped address: ${retAddress}\n` +
-        `[-] Program crashed with SIGSEGV.`
-      );
+      newLogs.push('[-] Segmentation fault: Saved RIP corrupted with invalid memory address.');
     }
+
+    setTerminalLogs(newLogs);
   };
 
   return (
-    <div className="space-y-4">
-      {/* 64-bit Stack Frame Layout */}
-      <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-3">
-        <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-          <span className="flex items-center gap-1.5 text-rose-400 font-semibold">
-            <Bug className="w-3.5 h-3.5" />
-            x86_64 Stack Frame Map
-          </span>
-          <span className="text-[11px] text-slate-500">gets() overflow vulnerability</span>
+    <div className="space-y-4 font-mono text-xs">
+      <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-rose-400" />
+          <span className="font-bold text-white text-sm">64-Bit x86_64 ROP Stack Frame Constructor</span>
         </div>
 
-        {/* Stack diagram */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
-          <div className="p-2.5 bg-slate-900 border border-slate-800 rounded">
-            <div className="text-slate-500 text-[10px] uppercase">Buffer (32 Bytes)</div>
-            <div className="text-slate-300 font-bold mt-1">char buf[32]</div>
-            <div className="text-[10px] text-slate-500 mt-1">Offset: 0x00 - 0x20</div>
-          </div>
-          <div className="p-2.5 bg-slate-900 border border-slate-800 rounded">
-            <div className="text-slate-500 text-[10px] uppercase">Saved RBP (8 Bytes)</div>
-            <div className="text-amber-400 font-bold mt-1">rbp frame pointer</div>
-            <div className="text-[10px] text-slate-500 mt-1">Offset: 0x20 - 0x28 (32-40)</div>
-          </div>
-          <div className="p-2.5 bg-rose-950/40 border border-rose-800/60 rounded">
-            <div className="text-rose-400 text-[10px] uppercase font-bold">Saved RIP (8 Bytes)</div>
-            <div className="text-rose-300 font-bold mt-1">Return Address</div>
-            <div className="text-[10px] text-rose-400/80 mt-1">Offset: 40 bytes</div>
-          </div>
-        </div>
-
-        {/* Payload builder */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className="block text-[11px] font-mono text-slate-400 mb-1">
-              Padding Offset to Saved RIP: <span className="text-emerald-400 font-bold">{paddingLength} bytes</span>
-            </label>
+            <label className="text-slate-400 text-[11px]">Buffer to RIP Offset:</label>
             <input
-              type="range"
-              min={20}
-              max={60}
-              step={1}
-              value={paddingLength}
-              onChange={e => setPaddingLength(Number(e.target.value))}
-              className="w-full accent-emerald-500"
+              type="number"
+              value={paddingLen}
+              onChange={e => setPaddingLen(parseInt(e.target.value, 10))}
+              className="w-full mt-1 p-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-xs font-mono"
             />
           </div>
-
           <div>
-            <label className="block text-[11px] font-mono text-slate-400 mb-1">Target Function Address:</label>
+            <label className="text-slate-400 text-[11px]">Target win() Address:</label>
             <input
               type="text"
-              value={retAddress}
-              onChange={e => setRetAddress(e.target.value)}
-              placeholder="0x004011ba"
-              className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-xs font-mono text-rose-300 focus:outline-none focus:border-rose-500"
+              value={targetAddress}
+              onChange={e => setTargetAddress(e.target.value)}
+              className="w-full mt-1 p-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-xs font-mono"
             />
           </div>
-        </div>
-
-        <div className="flex justify-end pt-2">
-          <button
-            onClick={handleExecute}
-            className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs rounded transition-colors flex items-center gap-1.5 shadow-lg shadow-rose-950/50"
-          >
-            <Play className="w-3.5 h-3.5" />
-            <span>Smash Stack & Execute</span>
-          </button>
-        </div>
-      </div>
-
-      {/* GDB / Execution Console */}
-      <div className="p-4 bg-black/90 border border-slate-800 rounded-lg font-mono text-xs space-y-2">
-        <div className="flex items-center justify-between text-[11px] text-slate-500 border-b border-slate-800 pb-2">
-          <span className="flex items-center gap-1.5 text-slate-400">
-            <Terminal className="w-3 h-3" />
-            GDB Debugger Session
-          </span>
-          <span className="text-emerald-400">PID: 9024</span>
-        </div>
-
-        <pre className="text-slate-300 whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto">
-          {terminalOutput}
-        </pre>
-
-        {captured && (
-          <div className="p-2.5 mt-2 bg-emerald-950/70 border border-emerald-500/40 rounded flex items-center justify-between">
-            <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4" />
-              Ret2Win Exploited!
-            </span>
-            <button
-              onClick={() => onFlagFound(FLAG)}
-              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-sans"
-            >
-              Auto-Fill Flag
-            </button>
+          <div className="flex items-center gap-2 pt-5">
+            <input
+              type="checkbox"
+              id="retGadget"
+              checked={useRetGadget}
+              onChange={e => setUseRetGadget(e.target.checked)}
+              className="accent-emerald-500 w-4 h-4"
+            />
+            <label htmlFor="retGadget" className="text-slate-300 text-xs cursor-pointer">
+              Stack Alignment Gadget (ret)
+            </label>
           </div>
-        )}
+        </div>
+
+        <button
+          onClick={handlePwn}
+          className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg text-xs"
+        >
+          Dispatch ROP Payload
+        </button>
+
+        <div className="p-3 bg-slate-900 rounded border border-slate-800 space-y-1 text-[11px] max-h-48 overflow-y-auto">
+          {terminalLogs.map((l, i) => (
+            <div key={i} className={l.includes('ROOT SHELL') ? 'text-emerald-400 font-bold' : 'text-slate-300'}>{l}</div>
+          ))}
+        </div>
       </div>
     </div>
   );

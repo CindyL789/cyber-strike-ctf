@@ -14,9 +14,7 @@ import {
   Shield,
   Sparkles,
   Zap,
-  Info,
-  CornerDownLeft,
-  ChevronRight
+  Info
 } from 'lucide-react';
 import { Challenge, UserProfile } from '../types/ctf';
 import { sound } from '../utils/audio';
@@ -38,15 +36,13 @@ interface FileNode {
   isExecutable?: boolean;
 }
 
-// Initial virtual filesystem mapped to CTF challenge files
 const INITIAL_FS: Record<string, FileNode> = {
-  // /home/operator
-  '/home/operator': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 29 20:00' },
+  '/home/operator': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 30 08:00' },
   '/home/operator/README.md': {
     type: 'file',
     perms: '-rw-r--r--',
     size: 512,
-    updated: 'Sep 29 20:01',
+    updated: 'Sep 30 08:01',
     content: `# CyberStrike CTF Arena — Interactive System Shell v2.4
 Welcome to the simulated host terminal.
 
@@ -72,314 +68,269 @@ Quick Commands:
     type: 'file',
     perms: '-rw-r--r--',
     size: 240,
-    updated: 'Sep 29 20:15',
+    updated: 'Sep 30 08:15',
     content: `OPERATOR FIELD NOTES:
-- Check Web auth services for unsanitized string interpolations in SQL queries.
-- Look for JWT algorithms set to "none" in token headers.
-- Single-byte XOR ciphers can be reversed by XORing known header bytes ("flag{").
-- SUID binaries calling relative paths like "tar" can be hijacked via custom PATH.
+- Hard challenges require multi-stage exploitation.
+- Blind SQLi returns HTTP 200 vs 404: use boolean condition testing.
+- AES-CBC padding oracle allows decrypting byte-by-byte via C'[15] ^ 0x01.
+- In x86_64 ret2win, remember 16-byte stack alignment with a dummy 'ret' gadget.
 `
   },
 
-  // /home/operator/challenges
-  '/home/operator/challenges': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 29 20:05' },
+  '/home/operator/challenges': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 30 08:05' },
 
-  // --- Web challenges ---
-  '/home/operator/challenges/web': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 29 20:05' },
-  '/home/operator/challenges/web/sqli-auth-bypass': {
+  // Web
+  '/home/operator/challenges/web': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 30 08:05' },
+  '/home/operator/challenges/web/blind-sqli': {
     type: 'dir',
     perms: 'drwxr-xr-x',
     size: 4096,
-    updated: 'Sep 29 20:10',
-    challengeId: 'sqli-auth-bypass'
+    updated: 'Sep 30 08:10',
+    challengeId: 'blind-sqli-time-oracle'
   },
-  '/home/operator/challenges/web/sqli-auth-bypass/auth_service.py': {
+  '/home/operator/challenges/web/blind-sqli/api_verify.php': {
     type: 'file',
     perms: '-rwxr-xr-x',
-    size: 1420,
-    updated: 'Sep 29 20:10',
-    challengeId: 'sqli-auth-bypass',
-    isExecutable: true,
-    content: `import sqlite3
-from flask import Flask, request, jsonify
-
-app = Flask(__name__)
-
-@app.route('/api/login', methods=['POST'])
-def login():
-    data = request.json or {}
-    user = data.get('username', '')
-    passwd = data.get('password', '')
-
-    # VULNERABLE: Direct SQL string interpolation
-    query = f"SELECT * FROM operators WHERE username = '{user}' AND password = '{passwd}'"
-    print(f"[DEBUG SQL EXEC]: {query}")
-
-    db = sqlite3.connect('database.sqlite')
-    cursor = db.cursor()
-    cursor.execute(query)
-    match = cursor.fetchone()
-
-    if match:
-        return jsonify({
-            "status": "authenticated",
-            "role": match[1],
-            "flag": "flag{sql_1nj3ct10n_m4st3r_992}"
-        })
-    return jsonify({"error": "Invalid credentials"}), 401
-`
-  },
-  '/home/operator/challenges/web/sqli-auth-bypass/database.sqlite': {
-    type: 'file',
-    perms: '-rw-r--r--',
-    size: 8192,
-    updated: 'Sep 29 20:10',
-    challengeId: 'sqli-auth-bypass',
-    content: `SQLite format 3\x00...
-TABLE operators (id INTEGER PRIMARY KEY, username TEXT, password TEXT, role TEXT);
-DATA: (1, 'commander', '7e2c9182390a1b8e4f1', 'admin');
-DATA: (2, 'operator_07', '8b9d31f00a2e7c4b123', 'guest');
-`
+    size: 1120,
+    updated: 'Sep 30 08:10',
+    challengeId: 'blind-sqli-time-oracle',
+    content: `<?php
+// Classified Agent Verification
+$id = $_POST['agent_id'];
+$query = "SELECT status FROM secret_agents WHERE agent_id = '$id'";
+$res = $db->query($query);
+if ($res && $res->num_rows > 0) {
+    http_response_code(200);
+    echo json_encode(["status" => "CONFIRMED"]);
+} else {
+    http_response_code(404);
+    echo json_encode(["status" => "NOT_FOUND"]);
+}
+?>`
   },
 
-  // JWT Tamper
-  '/home/operator/challenges/web/jwt-tamper-bypass': {
+  // Crypto
+  '/home/operator/challenges/crypto': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 30 08:05' },
+  '/home/operator/challenges/crypto/padding-oracle': {
     type: 'dir',
     perms: 'drwxr-xr-x',
     size: 4096,
-    updated: 'Sep 29 20:12',
-    challengeId: 'jwt-tamper-bypass'
+    updated: 'Sep 30 08:12',
+    challengeId: 'cbc-padding-oracle-attack'
   },
-  '/home/operator/challenges/web/jwt-tamper-bypass/jwt_auth.js': {
+  '/home/operator/challenges/crypto/padding-oracle/auth_token.bin': {
     type: 'file',
     perms: '-rw-r--r--',
-    size: 980,
-    updated: 'Sep 29 20:12',
-    challengeId: 'jwt-tamper-bypass',
-    content: `const jwt = require('jsonwebtoken');
+    size: 32,
+    updated: 'Sep 30 08:12',
+    challengeId: 'cbc-padding-oracle-attack',
+    content: `[AES-128-CBC Encrypted Token Block]
+C0 (IV): a8 4f 91 b2 c3 d4 e5 f6 07 18 29 3a 4b 5c 6d 7e
+C1:      5e 21 f0 9b a4 c2 d1 83 94 01 28 39 40 19 28 41
+`
+  },
 
-function verifySession(token) {
-  // Vulnerability: Header algorithm 'none' is accepted by unhardened parser
-  const [headerB64, payloadB64] = token.split('.');
-  const header = JSON.parse(Buffer.from(headerB64, 'base64').toString());
+  // Reverse
+  '/home/operator/challenges/reverse': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 30 08:05' },
+  '/home/operator/challenges/reverse/enigma-vm': {
+    type: 'dir',
+    perms: 'drwxr-xr-x',
+    size: 4096,
+    updated: 'Sep 30 08:14',
+    challengeId: 'custom-bytecode-vm-reversal'
+  },
+  '/home/operator/challenges/reverse/enigma-vm/dongle.bc': {
+    type: 'file',
+    perms: '-rwxr-xr-x',
+    size: 28,
+    updated: 'Sep 30 08:14',
+    challengeId: 'custom-bytecode-vm-reversal',
+    isExecutable: true,
+    content: `10 00 22 42 51 09 60 1A 10 01 35 02 51 8E 60 1A 10 03 48 13 51 4A 60 1A 77 00 FF FF`
+  },
 
-  if (header.alg === 'none') {
-    const payload = JSON.parse(Buffer.from(payloadB64, 'base64').toString());
-    if (payload.role === 'admin' || payload.isAdmin === true) {
-      return { authorized: true, flag: 'flag{jwt_n0n3_4lg_auth_byp4ss_718}' };
+  // Pwn
+  '/home/operator/challenges/pwn': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 30 08:05' },
+  '/home/operator/challenges/pwn/format-string': {
+    type: 'dir',
+    perms: 'drwxr-xr-x',
+    size: 4096,
+    updated: 'Sep 30 08:16',
+    challengeId: 'format-string-stack-arbitrary-write'
+  },
+  '/home/operator/challenges/pwn/format-string/echo_server.c': {
+    type: 'file',
+    perms: '-rw-r--r--',
+    size: 450,
+    updated: 'Sep 30 08:16',
+    challengeId: 'format-string-stack-arbitrary-write',
+    content: `#include <stdio.h>
+int target_auth_level = 0; // At address 0x0804C028
+
+void vuln() {
+    char buf[128];
+    read(0, buf, sizeof(buf));
+    printf(buf); // VULNERABLE: Direct printf without %s!
+    if (target_auth_level == 0x1337) {
+        system("/bin/sh");
     }
-  }
-  return { authorized: false, error: 'Access denied' };
 }
 `
   },
-  '/home/operator/challenges/web/jwt-tamper-bypass/token.jwt': {
-    type: 'file',
-    perms: '-rw-r--r--',
-    size: 215,
-    updated: 'Sep 29 20:12',
-    challengeId: 'jwt-tamper-bypass',
-    content: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiZ3Vlc3Rfb3BlcmF0b3IiLCJyb2xlIjoiZ3Vlc3QiLCJpc0FkbWluIjpmYWxzZX0.sig_test_dummy`
-  },
 
-  // --- Crypto challenges ---
-  '/home/operator/challenges/crypto': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 29 20:05' },
-  '/home/operator/challenges/crypto/ghost-cipher': {
+  // Forensics
+  '/home/operator/challenges/forensics': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 30 08:05' },
+  '/home/operator/challenges/forensics/volatility': {
     type: 'dir',
     perms: 'drwxr-xr-x',
     size: 4096,
-    updated: 'Sep 29 20:14',
-    challengeId: 'xor-frequency-breaker'
+    updated: 'Sep 30 08:18',
+    challengeId: 'memory-dump-volatility-forensics'
   },
-  '/home/operator/challenges/crypto/ghost-cipher/ciphertext.hex': {
-    type: 'file',
-    perms: '-rw-r--r--',
-    size: 82,
-    updated: 'Sep 29 20:14',
-    challengeId: 'xor-frequency-breaker',
-    content: `2d272a2c30337b3914287a3b2378391429397b20782514357a7f142d39783a36782528321473737a36`
-  },
-  '/home/operator/challenges/crypto/ghost-cipher/cipher_spec.txt': {
-    type: 'file',
-    perms: '-rw-r--r--',
-    size: 420,
-    updated: 'Sep 29 20:14',
-    challengeId: 'xor-frequency-breaker',
-    content: `CIPHER SPECIFICATION:
-Type: Single-Byte Repeating XOR
-Known Plaintext Header: "flag{"
-Hint: Byte 0x2d ^ 'f' (0x66) = Key Byte (0x4B)
-Resulting flag: flag{x0r_c1ph3r_br0k3n_v14_fr3qu3ncy_881}
-`
-  },
-
-  // Hastad's Whisper
-  '/home/operator/challenges/crypto/hastads-whisper': {
-    type: 'dir',
-    perms: 'drwxr-xr-x',
-    size: 4096,
-    updated: 'Sep 29 20:15',
-    challengeId: 'rsa-cube-root-weakness'
-  },
-  '/home/operator/challenges/crypto/hastads-whisper/public_key.info': {
+  '/home/operator/challenges/forensics/volatility/case_notes.txt': {
     type: 'file',
     perms: '-rw-r--r--',
     size: 320,
-    updated: 'Sep 29 20:15',
-    challengeId: 'rsa-cube-root-weakness',
-    content: `RSA Public Parameters:
-e = 3 (Low Public Exponent)
-n = 0x8a92f03b41... (2048-bit modulus)
-Padding: NONE
-Note: Since m^3 < n, ciphertext c is the unreduced integer cube of m.`
-  },
-
-  // --- Reverse challenges ---
-  '/home/operator/challenges/reverse': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 29 20:05' },
-  '/home/operator/challenges/reverse/crackme': {
-    type: 'dir',
-    perms: 'drwxr-xr-x',
-    size: 4096,
-    updated: 'Sep 29 20:16',
-    challengeId: 'reverse-disassembler-crackme'
-  },
-  '/home/operator/challenges/reverse/crackme/keygen_check.asm': {
-    type: 'file',
-    perms: '-rw-r--r--',
-    size: 610,
-    updated: 'Sep 29 20:16',
-    challengeId: 'reverse-disassembler-crackme',
-    content: `; x86 License Key Verification Routine
-section .text
-verify_key:
-    mov eax, [esp + 4]    ; load candidate key
-    xor eax, 0x5a         ; step 1: XOR mask
-    rol eax, 3            ; step 2: rotate left 3 bits
-    add eax, 0x1337       ; step 3: add offset
-    and eax, 0xffff       ; mask to 16-bit
-    cmp eax, 0xd4b2       ; comparison check
-    jne key_invalid
-    mov edx, flag_pwned   ; flag{r3v_4ss3mbly_cr4ckm3_pwn3d_334}
-    ret
-`
-  },
-  '/home/operator/challenges/reverse/crackme/crackme.bin': {
-    type: 'file',
-    perms: '-rwxr-xr-x',
-    size: 16384,
-    updated: 'Sep 29 20:16',
-    challengeId: 'reverse-disassembler-crackme',
-    isExecutable: true,
-    content: `\x7fELF\x02\x01\x01\x00\x00... [ELF 64-bit LSB pie executable, x86-64]
-Strings:
-GLIBC_2.34
-verify_key
-target_hash: 0xD4B2
-Access Granted: flag{r3v_4ss3mbly_cr4ckm3_pwn3d_334}
+    updated: 'Sep 30 08:18',
+    challengeId: 'memory-dump-volatility-forensics',
+    content: `CASE IR-2026-904:
+Image: incident_host09.raw
+Suspect anomalous outbound connection on port 4444.
+Use windows.netscan and windows.malfind to detect injected shellcode.
+Carve memory space with windows.memdump to recover exfiltrated C2 tokens.
 `
   },
 
-  // --- Forensics challenges ---
-  '/home/operator/challenges/forensics': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 29 20:05' },
-  '/home/operator/challenges/forensics/pcap-exfil': {
+  // Nightmare Tier Challenges Filesystem Nodes
+  '/home/operator/challenges/pwn/ghostwire': {
     type: 'dir',
     perms: 'drwxr-xr-x',
     size: 4096,
-    updated: 'Sep 29 20:18',
-    challengeId: 'pcap-stream-exfiltration'
+    updated: 'Sep 30 08:30',
+    challengeId: 'operation-ghostwire-ret2libc'
   },
-  '/home/operator/challenges/forensics/pcap-exfil/capture_summary.txt': {
+  '/home/operator/challenges/pwn/ghostwire/telemetry_service.c': {
     type: 'file',
     perms: '-rw-r--r--',
-    size: 380,
-    updated: 'Sep 29 20:18',
-    challengeId: 'pcap-stream-exfiltration',
-    content: `PCAP Analysis Summary:
-Target File: dump_094.pcap (45.2 KB)
-TCP Stream #3: POST /sync/report HTTP/1.1
-Header Host: exfil.remote-telemetry.org
-Exfiltrated Parameter: upload_blob=ZmxhZ3twYzRwX3A0Y2szdF9zdHIzNG1faHV0dHBfM3hmMWxfNjE3fQ==
-Decoded Content: flag{pc4p_p4ck3t_str34m_huttp_3xf1l_617}
-`
-  },
-
-  // --- Pwn challenges ---
-  '/home/operator/challenges/pwn': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 29 20:05' },
-  '/home/operator/challenges/pwn/suid-privesc': {
-    type: 'dir',
-    perms: 'drwxr-xr-x',
-    size: 4096,
-    updated: 'Sep 29 20:20',
-    challengeId: 'linux-suid-privesc'
-  },
-  '/home/operator/challenges/pwn/suid-privesc/sys-backup.c': {
-    type: 'file',
-    perms: '-rw-r--r--',
-    size: 490,
-    updated: 'Sep 29 20:20',
-    challengeId: 'linux-suid-privesc',
-    content: `#include <unistd.h>
+    size: 1420,
+    updated: 'Sep 30 08:30',
+    challengeId: 'operation-ghostwire-ret2libc',
+    content: `#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+
+void vulnerable_function() {
+    char buffer[40];
+    printf("[*] Enter diagnostic string: ");
+    // Format string leak occurs in diagnostic handler
+    // Buffer overflow occurs via unbounded gets()
+    gets(buffer);
+}
 
 int main() {
-    setuid(0);
-    setgid(0);
-    // VULNERABLE: Invokes 'tar' without absolute path (/bin/tar)
-    system("tar -czf /var/backups/archive.tar.gz /home/guest");
+    vulnerable_function();
     return 0;
-}
-`
+}`
   },
-  '/home/operator/challenges/pwn/suid-privesc/exploit_guide.txt': {
+  '/home/operator/challenges/crypto/quantum-lattice': {
+    type: 'dir',
+    perms: 'drwxr-xr-x',
+    size: 4096,
+    updated: 'Sep 30 08:30',
+    challengeId: 'the-quantum-lattice-ecdsa'
+  },
+  '/home/operator/challenges/crypto/quantum-lattice/hnp_solver.py': {
     type: 'file',
     perms: '-rw-r--r--',
-    size: 340,
-    updated: 'Sep 29 20:20',
-    challengeId: 'linux-suid-privesc',
-    content: `SUID PATH HIJACK TECHNIQUE:
-1. Create /tmp/tar containing:
-   #!/bin/sh
-   cat /root/flag.txt
-2. chmod +x /tmp/tar
-3. export PATH=/tmp:$PATH
-4. Run /usr/local/bin/sys-backup
-Result: flag{su1d_p4th_h1j4ck_r00t_sh3ll_901}
-`
+    size: 1650,
+    updated: 'Sep 30 08:30',
+    challengeId: 'the-quantum-lattice-ecdsa',
+    content: `# Hidden Number Problem (HNP) Solver for secp256k1
+# Ephemeral nonce k has 8 most significant bits zero (k < 2^248)
+# Construct 5x5 Kannan CVP lattice and apply fplll/LLL reduction.
+import sys
+
+def build_lattice(signatures, n, B):
+    # Matrix dimension = m + 1
+    # Shortest vector discloses private scalar d
+    pass`
+  },
+  '/home/operator/challenges/reverse/shadow-kernel': {
+    type: 'dir',
+    perms: 'drwxr-xr-x',
+    size: 4096,
+    updated: 'Sep 30 08:30',
+    challengeId: 'shadow-kernel-polymorphic'
+  },
+  '/home/operator/challenges/reverse/shadow-kernel/implant_notes.txt': {
+    type: 'file',
+    perms: '-rw-r--r--',
+    size: 680,
+    updated: 'Sep 30 08:30',
+    challengeId: 'shadow-kernel-polymorphic',
+    content: `POLYMORPHIC IMPLANT ANALYSIS:
+1. Anti-debugging: calls ptrace(PTRACE_TRACEME) at start. Must patch return to 0.
+2. Software breakpoints (0xCC) detected via page CRC32 scan.
+3. Decryptor mutation loop: K_{i+1} = (K_i * 0x5DEECE66D + 0xB) & 0xFF.
+4. Final validation routine unlocks at cycle 48.`
+  },
+  '/home/operator/challenges/web/pickle-deserialization': {
+    type: 'dir',
+    perms: 'drwxr-xr-x',
+    size: 4096,
+    updated: 'Sep 30 08:30',
+    challengeId: 'zero-click-deserialization'
+  },
+  '/home/operator/challenges/web/pickle-deserialization/broker_worker.py': {
+    type: 'file',
+    perms: '-rw-r--r--',
+    size: 1100,
+    updated: 'Sep 30 08:30',
+    challengeId: 'zero-click-deserialization',
+    content: `import pickle
+import io
+
+class RestrictedUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        # Prohibit os, subprocess, sys
+        if module in ["os", "subprocess", "socket", "sys"]:
+            raise pickle.UnpicklingError("Banned module: " + module)
+        return super().find_class(module, name)
+
+# Worker processes incoming payloads via RestrictedUnpickler`
+  },
+  '/home/operator/challenges/forensics/tls-bgp': {
+    type: 'dir',
+    perms: 'drwxr-xr-x',
+    size: 4096,
+    updated: 'Sep 30 08:30',
+    challengeId: 'bgp-hijack-tls13-downgrade'
+  },
+  '/home/operator/challenges/forensics/tls-bgp/bgp_intercept.log': {
+    type: 'file',
+    perms: '-rw-r--r--',
+    size: 780,
+    updated: 'Sep 30 08:30',
+    challengeId: 'bgp-hijack-tls13-downgrade',
+    content: `[ALERT] BGP Hijack ASN 64512 -> 198.51.100.0/24.
+Captured TLS 1.3 Handshake in Frame 42:
+- ClientRandom: 0x1a2b3c4d5e6f708192a3b4c5d6e7f809...
+- Cipher Suite: TLS_AES_128_GCM_SHA256
+- KeyShare: Curve25519 Ephemeral Share Carved
+- Server Private Scalar carved from memory: 0x9924a1b0...`
   },
 
   // /etc
-  '/etc': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 29 19:00' },
+  '/etc': { type: 'dir', perms: 'drwxr-xr-x', size: 4096, updated: 'Sep 30 07:00' },
   '/etc/os-release': {
     type: 'file',
     perms: '-rw-r--r--',
     size: 190,
-    updated: 'Sep 29 19:00',
+    updated: 'Sep 30 07:00',
     content: `NAME="CyberStrike CTF Linux"
 VERSION="2026.3 (Hardened Arena)"
 ID=cyberstrike
-ID_LIKE=debian
 PRETTY_NAME="CyberStrike Security OS 2026"
-`
-  },
-  '/etc/hosts': {
-    type: 'file',
-    perms: '-rw-r--r--',
-    size: 120,
-    updated: 'Sep 29 19:00',
-    content: `127.0.0.1       localhost cyberstrike-terminal
-10.10.14.1      gateway.internal.lan
-10.10.14.99     scoreboard.cyberstrike.org
-`
-  },
-  '/etc/passwd': {
-    type: 'file',
-    perms: '-rw-r--r--',
-    size: 280,
-    updated: 'Sep 29 19:00',
-    content: `root:x:0:0:root:/root:/bin/bash
-operator:x:1000:1000:CTF Operator:/home/operator:/bin/bash
-guest:x:1001:1001:Guest Operative:/home/guest:/bin/sh
-ctf-runner:x:1337:1337:Arena Sandbox Daemon:/var/ctf:/usr/sbin/nologin
 `
   }
 };
@@ -434,7 +385,6 @@ export const SystemShell: React.FC<Props> = ({
       target = current === '/' ? `/${target}` : `${current}/${target}`;
     }
 
-    // Resolve . and ..
     const parts = target.split('/').filter(Boolean);
     const resolved: string[] = [];
     for (const p of parts) {
@@ -462,12 +412,10 @@ export const SystemShell: React.FC<Props> = ({
     sound.playClick();
     const prompt = getPrompt();
 
-    // Record in history
     setHistory(prev => [trimmed, ...prev]);
     setHistoryIdx(-1);
 
     const newOutputs = [...outputLines, { type: 'input' as const, text: `${prompt}${trimmed}` }];
-
     const [cmd, ...args] = trimmed.split(/\s+/);
     const argStr = args.join(' ');
 
@@ -579,7 +527,6 @@ TEAM=${userProfile?.teamName || 'Solo Operator'}`
           break;
         }
 
-        // Collect direct children
         const prefix = targetDir === '/' ? '/' : `${targetDir}/`;
         const entries: Array<{ name: string; node: FileNode }> = [];
 
@@ -596,7 +543,6 @@ TEAM=${userProfile?.teamName || 'Solo Operator'}`
           newOutputs.push({ type: 'output', text: '(directory is empty)' });
         } else if (isLa) {
           const lines = entries.map(e => {
-            const typeChar = e.node.type === 'dir' ? 'd' : '-';
             const sizeStr = e.node.size.toString().padStart(6, ' ');
             const displayName = e.node.type === 'dir' ? `${e.name}/` : e.name;
             return `${e.node.perms}  1 operator operators ${sizeStr} ${e.node.updated}  ${displayName}`;
@@ -625,7 +571,6 @@ TEAM=${userProfile?.teamName || 'Solo Operator'}`
         } else {
           newOutputs.push({ type: 'output', text: fileNode.content || '(empty file)' });
 
-          // Check if file contains a flag pattern
           const flagMatch = fileNode.content?.match(/flag\{[a-zA-Z0-9_!@#$%^&*+-]+\}/);
           if (flagMatch) {
             sound.playSuccess();
@@ -768,7 +713,6 @@ TEAM=${userProfile?.teamName || 'Solo Operator'}`
           break;
         }
 
-        // Locate challenge matching the flag
         const targetChallenge = challenges.find(c => c.flag.trim().toLowerCase() === flag.trim().toLowerCase());
         if (targetChallenge) {
           const success = onSubmitFlag(targetChallenge.id, flag.trim());
@@ -826,21 +770,6 @@ TEAM=${userProfile?.teamName || 'Solo Operator'}`
         setHistoryIdx(-1);
         setInput('');
       }
-    } else if (e.key === 'Tab') {
-      e.preventDefault();
-      // Basic tab autocompletion
-      const parts = input.split(' ');
-      const lastWord = parts[parts.length - 1];
-      if (!lastWord) return;
-
-      const children = Object.keys(fs)
-        .filter(p => p.startsWith(cwd === '/' ? `/${lastWord}` : `${cwd}/${lastWord}`))
-        .map(p => p.split('/').pop() || '');
-
-      if (children.length === 1) {
-        parts[parts.length - 1] = children[0];
-        setInput(parts.join(' '));
-      }
     }
   };
 
@@ -887,7 +816,6 @@ TEAM=${userProfile?.teamName || 'Solo Operator'}`
 
         {/* Quick Toolbar */}
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          {/* Challenge Quick Selector */}
           <select
             value={selectedQuickChallenge}
             onChange={e => {
@@ -950,7 +878,6 @@ TEAM=${userProfile?.teamName || 'Solo Operator'}`
 
       {/* Main Terminal Screen */}
       <div className={`bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col ${isFullscreen ? 'flex-1' : 'min-h-[520px] max-h-[640px]'}`}>
-        {/* Terminal Title Bar */}
         <div className="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block" />
@@ -965,7 +892,6 @@ TEAM=${userProfile?.teamName || 'Solo Operator'}`
           </div>
         </div>
 
-        {/* Scrollable Output Buffer */}
         <div
           onClick={() => inputRef.current?.focus()}
           className="flex-1 p-4 font-mono text-xs overflow-y-auto space-y-1 text-slate-300 selection:bg-emerald-500/30 cursor-text"
@@ -989,7 +915,6 @@ TEAM=${userProfile?.teamName || 'Solo Operator'}`
             </div>
           ))}
 
-          {/* Active Input Line */}
           <div className="flex items-center gap-1.5 pt-1 text-emerald-400">
             <span className="font-bold select-none">{getPrompt()}</span>
             <input
@@ -1007,7 +932,6 @@ TEAM=${userProfile?.teamName || 'Solo Operator'}`
           <div ref={endRef} />
         </div>
 
-        {/* Terminal Bottom Command Shortcuts Bar */}
         <div className="px-4 py-2 bg-slate-900/60 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-slate-400">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-slate-500">Quick run:</span>
@@ -1050,7 +974,7 @@ TEAM=${userProfile?.teamName || 'Solo Operator'}`
           </div>
 
           <div className="text-slate-500 hidden sm:block">
-            <span>Tab: autocomplete · Up/Down: history</span>
+            <span>Up/Down: history · submit &lt;flag&gt;</span>
           </div>
         </div>
       </div>
