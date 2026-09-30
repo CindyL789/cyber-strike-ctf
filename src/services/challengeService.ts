@@ -203,7 +203,9 @@ export async function submitFlag(
   };
 
   const isFirstBlood = challenge.solvesCount === 0;
-  const tokenReward = isDailyOp ? 150 : 50;
+  const hasBooster = Boolean(user.tokenBoosterCount && user.tokenBoosterCount > 0);
+  const baseTokenReward = isDailyOp ? 150 : 50;
+  const tokenReward = hasBooster ? baseTokenReward * 2 : baseTokenReward;
   const currentTokens = user.tokens ?? 250;
   const newTokens = currentTokens + tokenReward;
 
@@ -219,6 +221,10 @@ export async function submitFlag(
       lastSolveTime: 'Just now',
       updatedAt: new Date().toISOString()
     };
+
+    if (hasBooster) {
+      profileUpdate.tokenBoosterCount = Math.max(0, (user.tokenBoosterCount || 1) - 1);
+    }
 
     if (isDailyOp) {
       profileUpdate.dailyStreak = newStreak;

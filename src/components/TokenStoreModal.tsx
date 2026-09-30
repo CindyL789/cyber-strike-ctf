@@ -14,10 +14,21 @@ import {
   Award,
   DollarSign,
   Lock,
-  ChevronRight
+  ChevronRight,
+  ShoppingBag,
+  Shield,
+  Radio,
+  Check
 } from 'lucide-react';
-import { UserProfile, TokenPackage } from '../types/ctf';
-import { TOKEN_PACKAGES, purchaseTokens, claimDailyFreeTokens } from '../services/tokenService';
+import { UserProfile, TokenPackage, ArmoryItem } from '../types/ctf';
+import {
+  TOKEN_PACKAGES,
+  ARMORY_ITEMS,
+  purchaseTokens,
+  claimDailyFreeTokens,
+  purchaseArmoryItem,
+  equipTitle
+} from '../services/tokenService';
 import { sound } from '../utils/audio';
 
 interface Props {
@@ -35,10 +46,13 @@ export const TokenStoreModal: React.FC<Props> = ({
   onOpenAuth,
   onSuccessNotice
 }) => {
+  const [activeTab, setActiveTab] = useState<'buy' | 'armory'>('buy');
   const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(TOKEN_PACKAGES[1]);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'crypto' | 'voucher'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isClaimingDaily, setIsClaimingDaily] = useState(false);
+  const [buyingItemId, setBuyingItemId] = useState<string | null>(null);
+  const [equippingTitle, setEquippingTitle] = useState<string | null>(null);
   const [purchaseSuccess, setPurchaseSuccess] = useState<{
     txId: string;
     tokensAdded: number;
@@ -107,6 +121,44 @@ export const TokenStoreModal: React.FC<Props> = ({
     }
   };
 
+  const handleBuyArmoryItem = async (item: ArmoryItem) => {
+    if (!userProfile) {
+      onOpenAuth();
+      return;
+    }
+    sound.playClick();
+    setBuyingItemId(item.id);
+    try {
+      const res = await purchaseArmoryItem(userProfile, item);
+      sound.playSuccess();
+      onSuccessNotice(res.message);
+    } catch (err: unknown) {
+      sound.playError();
+      alert((err as Error).message || 'Failed to purchase armory item.');
+    } finally {
+      setBuyingItemId(null);
+    }
+  };
+
+  const handleEquipTitle = async (titleBadge: string) => {
+    if (!userProfile) {
+      onOpenAuth();
+      return;
+    }
+    sound.playClick();
+    setEquippingTitle(titleBadge);
+    try {
+      const res = await equipTitle(userProfile, titleBadge);
+      sound.playSuccess();
+      onSuccessNotice(res.message);
+    } catch (err: unknown) {
+      sound.playError();
+      alert((err as Error).message || 'Failed to equip title.');
+    } finally {
+      setEquippingTitle(null);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
@@ -140,6 +192,39 @@ export const TokenStoreModal: React.FC<Props> = ({
           </button>
         </div>
 
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-2 px-6 py-2.5 bg-slate-950 border-b border-slate-800 text-xs font-mono">
+          <button
+            onClick={() => {
+              sound.playClick();
+              setActiveTab('buy');
+            }}
+            className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors ${
+              activeTab === 'buy'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Coins className="w-3.5 h-3.5" />
+            <span>Acquire Cyber Credits</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playClick();
+              setActiveTab('armory');
+            }}
+            className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors ${
+              activeTab === 'armory'
+                ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <ShoppingBag className="w-3.5 h-3.5" />
+            <span>Black Market Armory & Perks</span>
+          </button>
+        </div>
+
         {/* User Balance & Daily Drop Bar */}
         <div className="px-6 py-3 bg-slate-950/70 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
           <div className="flex items-center gap-2">
@@ -148,6 +233,18 @@ export const TokenStoreModal: React.FC<Props> = ({
               <Coins className="w-4 h-4 text-amber-400" />
               {userTokens.toLocaleString()} Credits
             </span>
+            {userProfile?.hasRadarLicense && (
+              <span className="ml-2 text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                <Radio className="w-3 h-3 text-emerald-400" />
+                <span>Recon Drone Active</span>
+              </span>
+            )}
+            {userProfile?.tokenBoosterCount ? (
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                <Flame className="w-3 h-3 text-amber-400" />
+                <span>{userProfile.tokenBoosterCount}x Solve Boost Active</span>
+              </span>
+            ) : null}
           </div>
 
           {/* Daily Supply Drop Button */}
@@ -200,7 +297,7 @@ export const TokenStoreModal: React.FC<Props> = ({
                 </button>
               </div>
             </div>
-          ) : (
+          ) : activeTab === 'buy' ? (
             <>
               {/* Package Tiers Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -410,6 +507,112 @@ export const TokenStoreModal: React.FC<Props> = ({
                 </div>
               </div>
             </>
+          ) : (
+            /* Armory & Black Market View */
+            <div className="space-y-6">
+              <div className="p-4 bg-gradient-to-r from-indigo-950/40 via-slate-950 to-slate-950 border border-indigo-500/30 rounded-xl flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                    <ShoppingBag className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Black Market Armory & Tactical Upgrades</h3>
+                    <p className="text-xs text-slate-400">
+                      Spend your hard-earned Cyber Credits on automated radar scanners, solve boosters, and prestige title insignias.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Armory Items Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {ARMORY_ITEMS.map(item => {
+                  const isOwned = Boolean(userProfile?.inventory?.includes(item.id));
+                  const isTitle = item.category === 'title';
+                  const isEquippedTitle = userProfile?.badgeTitle === item.badge;
+                  const canAfford = userTokens >= item.tokenCost;
+                  const isBuying = buyingItemId === item.id;
+                  const isEquipping = equippingTitle === item.badge;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className={`p-4 rounded-xl border flex flex-col justify-between space-y-3 transition-all ${
+                        isEquippedTitle
+                          ? 'bg-slate-900 border-amber-500/80 shadow-lg shadow-amber-950/40 ring-1 ring-amber-500/50'
+                          : isOwned
+                          ? 'bg-slate-900/60 border-slate-700'
+                          : 'bg-slate-950/80 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs font-mono">
+                          <span className="font-bold text-amber-400">{item.badge}</span>
+                          <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
+                            {item.category}
+                          </span>
+                        </div>
+
+                        <div>
+                          <div className="text-sm font-bold text-white">{item.name}</div>
+                          <div className="text-xs text-slate-400 pt-1 leading-relaxed">
+                            {item.description}
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-800/80 text-[11px] text-emerald-400 font-mono">
+                          ✓ {item.effect}
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                        <div className="font-mono text-xs font-bold text-amber-400 flex items-center gap-1">
+                          <Coins className="w-3.5 h-3.5" />
+                          <span>{item.tokenCost.toLocaleString()} Credits</span>
+                        </div>
+
+                        {isOwned ? (
+                          isTitle ? (
+                            isEquippedTitle ? (
+                              <span className="px-3 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-mono font-bold flex items-center gap-1">
+                                <Check className="w-3 h-3 text-amber-400" />
+                                <span>Equipped</span>
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleEquipTitle(item.badge)}
+                                disabled={isEquipping}
+                                className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono font-semibold transition-colors"
+                              >
+                                {isEquipping ? 'Equipping...' : 'Equip Title'}
+                              </button>
+                            )
+                          ) : (
+                            <span className="px-2.5 py-1 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 text-xs font-mono font-bold flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <span>Owned</span>
+                            </span>
+                          )
+                        ) : (
+                          <button
+                            onClick={() => handleBuyArmoryItem(item)}
+                            disabled={!canAfford || isBuying}
+                            className={`px-3 py-1 rounded text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                              canAfford
+                                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow'
+                                : 'bg-slate-900 border border-slate-800 text-slate-500 cursor-not-allowed'
+                            }`}
+                          >
+                            <span>{isBuying ? 'Acquiring...' : canAfford ? 'Acquire' : 'Need Credits'}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
       </div>

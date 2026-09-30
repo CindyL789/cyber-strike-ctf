@@ -1,6 +1,6 @@
 import { doc, updateDoc, collection, addDoc, increment } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase/config';
-import { UserProfile, TokenPackage, Top5RewardTier, ActivityEvent } from '../types/ctf';
+import { UserProfile, TokenPackage, Top5RewardTier, ActivityEvent, ArmoryItem } from '../types/ctf';
 
 const USERS_COLLECTION = 'users';
 const ACTIVITY_COLLECTION = 'activity';
@@ -307,6 +307,129 @@ export async function claimDailyFreeTokens(
       success: true,
       tokensAwarded: bonus,
       message: `Daily Supply Drop claimed! +${bonus} Cyber Credits added to your balance.`
+    };
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `${USERS_COLLECTION}/${user.uid}`);
+    throw err;
+  }
+}
+
+export const ARMORY_ITEMS: ArmoryItem[] = [
+  {
+    id: 'radar-license',
+    name: 'Tactical Recon Drone License',
+    category: 'perk',
+    tokenCost: 450,
+    badge: '🛰️ Recon Radar',
+    description: 'Deploys an automated reconnaissance scanner to analyze target challenge architectures, open ports, and potential attack vectors.',
+    effect: 'Free tactical recon scans across all CTF challenges'
+  },
+  {
+    id: 'booster-pack-3x',
+    name: '3x Solve Token Booster',
+    category: 'booster',
+    tokenCost: 300,
+    badge: '⚡ Overclock',
+    description: 'Infuses your solve pipeline with overclocked telemetry, increasing solve token rewards by +100% on your next 3 flag captures.',
+    effect: '+100% Cyber Credits on next 3 solves'
+  },
+  {
+    id: 'title-ghost-protocol',
+    name: 'Prestige Title: Ghost Protocol',
+    category: 'title',
+    tokenCost: 200,
+    badge: '⚡ Ghost Protocol',
+    description: 'Displays a classified cyan insignia badge on your public scoreboard handle and header profile.',
+    effect: 'Equippable profile title badge'
+  },
+  {
+    id: 'title-zeroday-hunter',
+    name: 'Prestige Title: Zero-Day Hunter',
+    category: 'title',
+    tokenCost: 400,
+    badge: '💀 Zero-Day Hunter',
+    description: 'Displays a fearsome skull insignia badge showing your mastery of unknown vulnerabilities.',
+    effect: 'Equippable profile title badge'
+  },
+  {
+    id: 'title-cyber-aegis',
+    name: 'Prestige Title: Cyber Aegis Sentinel',
+    category: 'title',
+    tokenCost: 650,
+    badge: '🛡️ Aegis Sentinel',
+    description: 'Displays an elite emerald shield title badge on all CTF team roster listings.',
+    effect: 'Equippable profile title badge'
+  },
+  {
+    id: 'title-sovereign-archon',
+    name: 'Prestige Title: Sovereign Archon',
+    category: 'title',
+    tokenCost: 1200,
+    badge: '👑 Sovereign Archon',
+    description: 'Supreme holographic crown badge for top-tier CTF warlords and syndicate commanders.',
+    effect: 'Equippable profile title badge'
+  }
+];
+
+export async function purchaseArmoryItem(
+  user: UserProfile,
+  item: ArmoryItem
+): Promise<{ success: boolean; newTokens: number; message: string }> {
+  const currentTokens = user.tokens ?? 250;
+  if (currentTokens < item.tokenCost) {
+    throw new Error(`Insufficient Cyber Credits. Need ${item.tokenCost} tokens, but you have ${currentTokens}.`);
+  }
+
+  const currentInventory = user.inventory || [];
+  if (currentInventory.includes(item.id)) {
+    throw new Error('You already own this item in your Armory.');
+  }
+
+  const newTokens = currentTokens - item.tokenCost;
+  const newInventory = [...currentInventory, item.id];
+  const updates: Record<string, unknown> = {
+    tokens: newTokens,
+    inventory: newInventory,
+    updatedAt: new Date().toISOString()
+  };
+
+  if (item.id === 'radar-license') {
+    updates.hasRadarLicense = true;
+  } else if (item.id === 'booster-pack-3x') {
+    updates.tokenBoosterCount = (user.tokenBoosterCount || 0) + 3;
+  } else if (item.category === 'title') {
+    updates.badgeTitle = item.badge;
+  }
+
+  try {
+    const userRef = doc(db, USERS_COLLECTION, user.uid);
+    await updateDoc(userRef, updates);
+
+    return {
+      success: true,
+      newTokens,
+      message: `Acquired "${item.name}"! ${item.effect}.`
+    };
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, `${USERS_COLLECTION}/${user.uid}`);
+    throw err;
+  }
+}
+
+export async function equipTitle(
+  user: UserProfile,
+  titleBadge: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const userRef = doc(db, USERS_COLLECTION, user.uid);
+    await updateDoc(userRef, {
+      badgeTitle: titleBadge,
+      updatedAt: new Date().toISOString()
+    });
+
+    return {
+      success: true,
+      message: `Equipped title "${titleBadge}" to your public profile.`
     };
   } catch (err) {
     handleFirestoreError(err, OperationType.UPDATE, `${USERS_COLLECTION}/${user.uid}`);

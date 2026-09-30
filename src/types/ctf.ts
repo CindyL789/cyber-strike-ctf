@@ -52,8 +52,21 @@ export interface UserProfile {
   lastDailySolveDate?: string;
   dailyStreakRecord?: number;
   dailySolvesCount?: number;
+  inventory?: string[];
+  hasRadarLicense?: boolean;
+  tokenBoosterCount?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ArmoryItem {
+  id: string;
+  name: string;
+  category: 'title' | 'perk' | 'booster';
+  tokenCost: number;
+  badge: string;
+  description: string;
+  effect: string;
 }
 
 export interface DailyOpInfo {

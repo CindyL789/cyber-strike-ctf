@@ -12,14 +12,15 @@ import {
   LogOut,
   Github,
   Coins,
-  Crown
+  Crown,
+  Terminal
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { UserProfile } from '../types/ctf';
 
 interface Props {
-  currentTab: 'challenges' | 'scoreboard' | 'activity' | 'teams' | 'rules' | 'admin';
-  onSelectTab: (tab: 'challenges' | 'scoreboard' | 'activity' | 'teams' | 'rules' | 'admin') => void;
+  currentTab: 'challenges' | 'scoreboard' | 'activity' | 'teams' | 'rules' | 'admin' | 'shell';
+  onSelectTab: (tab: 'challenges' | 'scoreboard' | 'activity' | 'teams' | 'rules' | 'admin' | 'shell') => void;
   userProfile: UserProfile | null;
   userRank: number;
   onOpenWorkbench: () => void;
@@ -151,6 +152,20 @@ export const Header: React.FC<Props> = ({
             }`}
           >
             Rules & Intel
+          </button>
+          <button
+            onClick={() => {
+              sound.playClick();
+              onSelectTab('shell');
+            }}
+            className={`transition-colors pb-1 border-b-2 flex items-center gap-1.5 ${
+              currentTab === 'shell'
+                ? 'border-emerald-400 text-white'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+            <span>System Shell</span>
           </button>
 
           {/* Admin Dashboard tab */}

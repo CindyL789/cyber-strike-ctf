@@ -58,58 +58,72 @@ export const LeaderboardView: React.FC<Props> = ({ teams, userProfile, onOpenTop
         )}
       </div>
 
-      {/* Top Podium summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {sortedTeams.slice(0, 3).map((team, idx) => {
-          const medalColors = [
-            'border-amber-500/40 bg-amber-500/5 text-amber-400',
-            'border-slate-400/40 bg-slate-400/5 text-slate-300',
-            'border-amber-700/40 bg-amber-700/5 text-amber-600'
-          ];
-          return (
-            <div
-              key={team.id}
-              className={`p-5 rounded-xl border ${medalColors[idx]} space-y-3 relative overflow-hidden shadow-lg`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Medal className="w-5 h-5" />
-                  <span className="font-bold text-xs uppercase tracking-wider">Rank #{idx + 1}</span>
-                </div>
-                <span className="text-xs font-mono text-slate-400">
-                  {team.solves} solved
-                </span>
-              </div>
+      {/* Top 5 Podium summary cards */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs font-mono text-slate-400">
+          <span className="uppercase font-bold tracking-wider text-amber-400 flex items-center gap-1.5">
+            <Crown className="w-3.5 h-3.5 text-amber-400" />
+            <span>Season Top 5 Podium Standings</span>
+          </span>
+          <span className="text-[11px] text-slate-500">Live Qualification Stage</span>
+        </div>
 
-              <div>
-                <div className="text-base font-bold text-slate-100 flex items-center gap-2 truncate">
-                  {team.teamTag && (
-                    <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shrink-0">
-                      [{team.teamTag}]
-                    </span>
-                  )}
-                  <span className="truncate">{team.name}</span>
-                  {team.isUser && (
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
-                      YOU
-                    </span>
-                  )}
-                </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {sortedTeams.slice(0, 5).map((team, idx) => {
+            const rank = idx + 1;
+            const tier = TOP_5_REWARDS.find(r => r.rank === rank);
+            const medalStyles = [
+              'border-amber-400/60 bg-gradient-to-b from-amber-500/10 to-slate-900 text-amber-300 ring-1 ring-amber-500/30 shadow-amber-950/40',
+              'border-slate-300/50 bg-gradient-to-b from-slate-400/10 to-slate-900 text-slate-200 ring-1 ring-slate-400/20 shadow-slate-950/40',
+              'border-amber-700/50 bg-gradient-to-b from-amber-700/10 to-slate-900 text-amber-600 ring-1 ring-amber-700/20 shadow-amber-950/40',
+              'border-blue-500/40 bg-gradient-to-b from-blue-500/10 to-slate-900 text-blue-300 ring-1 ring-blue-500/20 shadow-blue-950/40',
+              'border-purple-500/40 bg-gradient-to-b from-purple-500/10 to-slate-900 text-purple-300 ring-1 ring-purple-500/20 shadow-purple-950/40'
+            ];
 
-                <div className="text-2xl font-bold font-mono text-slate-100 tabular-nums pt-1">
-                  {team.score.toLocaleString()} <span className="text-xs font-normal text-slate-400">PTS</span>
-                </div>
-
-                {team.isTeam && team.memberCount && (
-                  <div className="text-[11px] font-mono text-slate-400 pt-1 flex items-center gap-1.5">
-                    <Users className="w-3 h-3 text-indigo-400" />
-                    <span>Squad of {team.memberCount} operatives</span>
+            return (
+              <div
+                key={team.id}
+                className={`p-4 rounded-xl border ${medalStyles[idx]} flex flex-col justify-between space-y-2.5 relative overflow-hidden shadow-lg`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-mono">
+                    <Medal className="w-4 h-4" />
+                    <span className="font-bold text-xs">Rank #{rank}</span>
                   </div>
-                )}
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    +{tier?.tokensReward.toLocaleString()} Cr
+                  </span>
+                </div>
+
+                <div>
+                  <div className="text-xs font-mono text-slate-400">{tier?.badge.split(' ')[0]} {tier?.title}</div>
+                  <div className="text-sm font-bold text-slate-100 flex items-center gap-1.5 truncate pt-0.5">
+                    {team.teamTag && (
+                      <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shrink-0">
+                        [{team.teamTag}]
+                      </span>
+                    )}
+                    <span className="truncate">{team.name}</span>
+                    {team.isUser && (
+                      <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                        YOU
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-xl font-bold font-mono text-emerald-400 tabular-nums pt-1">
+                    {team.score.toLocaleString()} <span className="text-[10px] font-normal text-slate-400">PTS</span>
+                  </div>
+
+                  <div className="text-[10px] font-mono text-slate-400 pt-1 flex items-center justify-between">
+                    <span>{team.solves} solves</span>
+                    <span className="text-slate-500">{team.lastSolveTime}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {/* Main Table */}

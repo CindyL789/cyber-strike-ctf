@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Flag, CheckCircle2, AlertTriangle, Lightbulb, BookOpen, Terminal, Shield, ArrowRight, Coins, Sparkles } from 'lucide-react';
+import { X, Flag, CheckCircle2, AlertTriangle, Lightbulb, BookOpen, Terminal, Shield, ArrowRight, Coins, Sparkles, Radio, Cpu, Network, LockOpen } from 'lucide-react';
 import { Challenge } from '../types/ctf';
 import { sound } from '../utils/audio';
 
@@ -30,11 +30,13 @@ interface Props {
   isSolved: boolean;
   unlockedHints: string[];
   userTokens?: number;
+  hasRadarLicense?: boolean;
   onClose: () => void;
   onSubmitFlag: (challengeId: string, flag: string) => boolean;
   onUnlockHint: (challengeId: string, hintId: string, cost: number) => void;
   onUnlockHintWithTokens?: (challengeId: string, hintId: string, tokenCost: number) => void;
   onOpenTokenStore?: () => void;
+  onOpenShell?: () => void;
 }
 
 export const ChallengeModal: React.FC<Props> = ({
@@ -42,13 +44,15 @@ export const ChallengeModal: React.FC<Props> = ({
   isSolved,
   unlockedHints,
   userTokens = 0,
+  hasRadarLicense = false,
   onClose,
   onSubmitFlag,
   onUnlockHint,
   onUnlockHintWithTokens,
-  onOpenTokenStore
+  onOpenTokenStore,
+  onOpenShell
 }) => {
-  const [activeTab, setActiveTab] = useState<'sandbox' | 'brief' | 'hints' | 'writeup'>('sandbox');
+  const [activeTab, setActiveTab] = useState<'sandbox' | 'brief' | 'radar' | 'hints' | 'writeup'>('sandbox');
   const [flagInput, setFlagInput] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -198,6 +202,25 @@ export const ChallengeModal: React.FC<Props> = ({
           <button
             onClick={() => {
               sound.playClick();
+              setActiveTab('radar');
+            }}
+            className={`px-3 py-1.5 rounded font-medium flex items-center gap-1.5 transition-colors ${
+              activeTab === 'radar'
+                ? 'bg-slate-800 text-emerald-400 border border-slate-700'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Radio className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Recon Radar</span>
+            {hasRadarLicense && (
+              <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                ACTIVE
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => {
+              sound.playClick();
               setActiveTab('hints');
             }}
             className={`px-3 py-1.5 rounded font-medium flex items-center gap-1.5 transition-colors ${
@@ -223,6 +246,20 @@ export const ChallengeModal: React.FC<Props> = ({
             >
               <BookOpen className="w-3.5 h-3.5" />
               <span>Solution Walkthrough</span>
+            </button>
+          )}
+
+          {onOpenShell && (
+            <button
+              onClick={() => {
+                sound.playClick();
+                onOpenShell();
+              }}
+              className="ml-auto px-2.5 py-1 text-slate-400 hover:text-emerald-400 bg-slate-900 hover:bg-slate-800 rounded border border-slate-800 flex items-center gap-1 font-mono text-[11px] transition-colors"
+              title="Open dedicated System Shell"
+            >
+              <Terminal className="w-3 h-3 text-emerald-400" />
+              <span className="hidden sm:inline">Open in System Shell</span>
             </button>
           )}
         </div>
@@ -255,6 +292,130 @@ export const ChallengeModal: React.FC<Props> = ({
               <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg text-xs space-y-1 text-slate-400">
                 <div>Author: <span className="text-slate-200 font-mono">@{challenge.author}</span></div>
                 <div>Standard Flag Format: <code className="text-emerald-400 font-mono">flag&#123;...&#125;</code></div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'radar' && (
+            <div className="space-y-4 text-xs font-mono">
+              <div className="p-4 bg-gradient-to-r from-emerald-950/40 via-slate-950 to-slate-950 border border-emerald-500/30 rounded-xl flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                    <Radio className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>Tactical Architecture Radar</span>
+                      {hasRadarLicense ? (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                          DRONE LICENSE UNLOCKED
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          STANDARD SCAN
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Live telemetry reconnaissance and port fingerprinting for target: {challenge.id}
+                    </p>
+                  </div>
+                </div>
+
+                {!hasRadarLicense && onOpenTokenStore && (
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      onOpenTokenStore();
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all shrink-0"
+                  >
+                    Get Drone License (Armory)
+                  </button>
+                )}
+              </div>
+
+              {/* Architecture & Ports Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-2">
+                  <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <Cpu className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Target Host Runtime & Kernel</span>
+                  </div>
+                  <div className="space-y-1 text-slate-400 text-[11px]">
+                    <div className="flex justify-between border-b border-slate-900 pb-1">
+                      <span>Sandbox VM:</span>
+                      <span className="text-emerald-400 font-bold">ctf-{challenge.category.toLowerCase()}-node.internal</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-900 pb-1">
+                      <span>OS Platform:</span>
+                      <span className="text-slate-200">Linux 5.15.0-x86_64</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-900 pb-1">
+                      <span>Isolation:</span>
+                      <span className="text-slate-200">Seccomp / Unprivileged Namespace</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Challenge Domain:</span>
+                      <span className="text-amber-400 font-bold">{challenge.category}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-2">
+                  <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <Network className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Port & Service Fingerprint</span>
+                  </div>
+                  <div className="space-y-1 text-slate-400 text-[11px]">
+                    <div className="flex justify-between border-b border-slate-900 pb-1">
+                      <span>Primary Ingress:</span>
+                      <span className="text-emerald-400 font-bold">
+                        {challenge.category === 'Web'
+                          ? 'TCP/80, 443 (HTTP/1.1)'
+                          : challenge.category === 'Pwn'
+                          ? 'TCP/1337 (ELF Daemon)'
+                          : challenge.category === 'Crypto'
+                          ? 'TCP/9002 (Cryptographic RPC)'
+                          : 'Local Memory Stream'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-900 pb-1">
+                      <span>Service Banner:</span>
+                      <span className="text-slate-200 truncate max-w-[200px]">{challenge.title} v1.4</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-900 pb-1">
+                      <span>Authentication:</span>
+                      <span className="text-rose-400 font-bold">Vulnerable / Bypassable</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Payload Mode:</span>
+                      <span className="text-slate-200">Synchronous Sandbox Execution</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attack Vector Surface Map */}
+              <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-2">
+                <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                  <LockOpen className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Identified Attack Vectors</span>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {challenge.tags.map((tag, i) => (
+                    <div
+                      key={tag}
+                      className="px-2.5 py-1.5 rounded bg-slate-900 border border-slate-700/80 text-[11px] text-slate-300 flex items-center gap-2"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                      <span className="font-bold text-white">{tag}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-400 pt-2 leading-relaxed">
+                  Reconnaissance indicates input sanitization weaknesses or algorithmic shortcuts can be leveraged. Use the Interactive Target Sandbox tab to test payloads against the live container.
+                </p>
               </div>
             </div>
           )}

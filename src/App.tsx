@@ -31,6 +31,7 @@ import { TeamHubView } from './components/TeamHubView';
 import { DailyOpBanner } from './components/DailyOpBanner';
 import { TokenStoreModal } from './components/TokenStoreModal';
 import { Top5PodiumModal } from './components/Top5PodiumModal';
+import { SystemShell } from './components/SystemShell';
 import { sound } from './utils/audio';
 
 // Services
@@ -58,7 +59,7 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<'All' | Category>('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState<'All' | Difficulty>('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentTab, setCurrentTab] = useState<'challenges' | 'scoreboard' | 'activity' | 'teams' | 'rules' | 'admin'>('challenges');
+  const [currentTab, setCurrentTab] = useState<'challenges' | 'scoreboard' | 'activity' | 'teams' | 'rules' | 'admin' | 'shell'>('challenges');
   const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null);
   const [isWorkbenchOpen, setIsWorkbenchOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -615,6 +616,16 @@ export default function App() {
         {/* Navigation Tab: RULES */}
         {currentTab === 'rules' && <RulesView />}
 
+        {/* Navigation Tab: SYSTEM SHELL */}
+        {currentTab === 'shell' && (
+          <SystemShell
+            challenges={challenges}
+            userProfile={userProfile}
+            onSubmitFlag={handleFlagSubmission}
+            onOpenChallenge={ch => setActiveChallenge(ch)}
+          />
+        )}
+
         {/* Navigation Tab: ADMIN DASHBOARD */}
         {currentTab === 'admin' && userProfile?.role === 'admin' && (
           <AdminDashboard challenges={challenges} />
@@ -628,11 +639,16 @@ export default function App() {
           isSolved={solvedIds.includes(activeChallenge.id)}
           unlockedHints={unlockedHints}
           userTokens={userProfile ? (userProfile.tokens ?? 250) : guestTokens}
+          hasRadarLicense={Boolean(userProfile?.hasRadarLicense)}
           onClose={() => setActiveChallenge(null)}
           onSubmitFlag={handleFlagSubmission}
           onUnlockHint={handleUnlockHint}
           onUnlockHintWithTokens={handleUnlockHintWithTokens}
           onOpenTokenStore={() => setIsTokenStoreOpen(true)}
+          onOpenShell={() => {
+            setActiveChallenge(null);
+            setCurrentTab('shell');
+          }}
         />
       )}
 
