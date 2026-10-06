@@ -282,7 +282,7 @@ export async function leaveTeam(
   const userRef = doc(db, USERS_COLLECTION, user.uid);
 
   try {
-    const remainingMemberIds = team.memberIds.filter(id => id !== user.uid);
+    const remainingMemberIds = team.memberIds.filter((id: string) => id !== user.uid);
 
     if (remainingMemberIds.length === 0) {
       // Disband team if last member leaves

@@ -40,7 +40,7 @@ export const TeamHubView: React.FC<Props> = ({
       setTeamTag('');
     } catch (err: unknown) {
       sound.playError();
-      alert((err as Error).message || 'Failed to create squad.');
+      onNotice((err as Error).message || 'Failed to create squad.');
     } finally {
       setIsSubmitting(false);
     }
@@ -58,7 +58,7 @@ export const TeamHubView: React.FC<Props> = ({
       onNotice(`Joined squad "${name}"!`);
     } catch (err: unknown) {
       sound.playError();
-      alert((err as Error).message || 'Failed to join squad.');
+      onNotice((err as Error).message || 'Failed to join squad.');
     }
   };
 

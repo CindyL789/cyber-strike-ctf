@@ -14,6 +14,8 @@ export interface Challenge {
   category: Category;
   difficulty: Difficulty;
   points: number;
+  dailyBonusPoints?: number;
+  isDaily?: boolean;
   author: string;
   solvesCount: number;
   flag: string;
@@ -24,6 +26,24 @@ export interface Challenge {
   initialState?: Record<string, unknown>;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  tag: string;
+  description: string;
+  captainId: string;
+  captainName: string;
+  memberIds: string[];
+  inviteCode: string;
+  score: number;
+  solvesCount: number;
+  solvedChallengeIds: string[];
+  categoryBreakdown: Record<Category, number>;
+  isOpen: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TeamScore {
@@ -97,12 +117,14 @@ export interface DailyOpInfo {
 
 export interface ActivityEvent {
   id: string;
+  userId?: string;
   teamName: string;
   challengeTitle: string;
   category: Category;
   points: number;
   timestamp: string;
   isFirstBlood?: boolean;
+  isUser?: boolean;
 }
 
 export interface TokenPackage {

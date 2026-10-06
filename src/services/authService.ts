@@ -1,6 +1,8 @@
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
@@ -96,8 +98,73 @@ export async function registerPlayer(email: string, pass: string, username: stri
   }
 }
 
-export async function loginPlayer(email: string, pass: string): Promise<void> {
-  await signInWithEmailAndPassword(auth, email.trim(), pass);
+export async function loginPlayer(email: string, pass: string): Promise<UserProfile> {
+  const cred = await signInWithEmailAndPassword(auth, email.trim(), pass);
+  const snap = await getDoc(doc(db, USERS_COLLECTION, cred.user.uid));
+  if (snap.exists()) {
+    return snap.data() as UserProfile;
+  }
+  return {
+    uid: cred.user.uid,
+    username: cred.user.displayName || email.split('@')[0],
+    email: cred.user.email || email.trim(),
+    score: 0,
+    solvesCount: 0,
+    solvedChallengeIds: [],
+    unlockedHintIds: [],
+    tokens: 250,
+    categoryBreakdown: {
+      Web: 0,
+      Crypto: 0,
+      Reverse: 0,
+      Forensics: 0,
+      Pwn: 0
+    },
+    role: 'player',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+export async function loginWithGoogle(): Promise<UserProfile> {
+  const provider = new GoogleAuthProvider();
+  const cred = await signInWithPopup(auth, provider);
+  const uid = cred.user.uid;
+  const userRef = doc(db, USERS_COLLECTION, uid);
+  const snap = await getDoc(userRef);
+  if (snap.exists()) {
+    return snap.data() as UserProfile;
+  }
+  const cleanEmail = cred.user.email || '';
+  const cleanUser = cred.user.displayName || cleanEmail.split('@')[0] || `op_${uid.slice(0, 5)}`;
+  const isBootstrapAdmin = cleanEmail.toLowerCase() === 'cindylouis2228@gmail.com';
+  const newProfile: UserProfile = {
+    uid,
+    username: cleanUser,
+    email: cleanEmail,
+    score: 0,
+    solvesCount: 0,
+    solvedChallengeIds: [],
+    unlockedHintIds: [],
+    tokens: 250,
+    categoryBreakdown: {
+      Web: 0,
+      Crypto: 0,
+      Reverse: 0,
+      Forensics: 0,
+      Pwn: 0
+    },
+    role: isBootstrapAdmin ? 'admin' : 'player',
+    dailyStreak: 0,
+    dailySolvesCount: 0,
+    inventory: [],
+    hasRadarLicense: false,
+    tokenBoosterCount: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  await setDoc(userRef, newProfile);
+  return newProfile;
 }
 
 export async function logoutPlayer(): Promise<void> {
