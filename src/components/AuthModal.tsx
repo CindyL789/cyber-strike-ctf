@@ -69,7 +69,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
 
   const fillQuickDemo = () => {
     sound.playClick();
-    const randomSuffix = Math.floor(100 + Math.random() * 900);
+    const randomSuffix = 100 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900);
     setUsername(`operator_${randomSuffix}`);
     setPassword('CyberStrikePass123!');
     setIsRegister(true);
