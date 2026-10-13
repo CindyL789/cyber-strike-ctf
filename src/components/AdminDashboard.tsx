@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, Database, Users, Flag } from 'lucide-react';
+import { ShieldAlert, Database, Users } from 'lucide-react';
 import { Challenge } from '../types/ctf';
 
 interface Props {
@@ -36,26 +36,6 @@ export const AdminDashboard: React.FC<Props> = ({ challenges }) => {
         </div>
       </div>
 
-      <div className="p-5 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
-        <div className="text-sm font-bold text-white flex items-center gap-2">
-          <Flag className="w-4 h-4 text-emerald-400" />
-          <span>Active Challenge Flags Reference (Restricted)</span>
-        </div>
-
-        <div className="divide-y divide-slate-800 max-h-80 overflow-y-auto">
-          {challenges.map(c => (
-            <div key={c.id} className="py-2.5 flex items-center justify-between gap-3 text-[11px]">
-              <div>
-                <span className="font-bold text-slate-200">{c.title}</span>
-                <span className="text-slate-500 ml-2">[{c.category} · {c.difficulty}]</span>
-              </div>
-              <code className="text-emerald-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                {c.flag}
-              </code>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };

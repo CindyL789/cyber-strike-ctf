@@ -61,7 +61,6 @@ export async function registerPlayer(email: string, pass: string, username: stri
 
   const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
   const uid = userCredential.user.uid;
-  const isBootstrapAdmin = cleanEmail.toLowerCase() === 'cindylouis2228@gmail.com';
 
   const newProfile: UserProfile = {
     uid,
@@ -79,7 +78,7 @@ export async function registerPlayer(email: string, pass: string, username: stri
       Forensics: 0,
       Pwn: 0
     },
-    role: isBootstrapAdmin ? 'admin' : 'player',
+    role: 'player',
     dailyStreak: 0,
     dailySolvesCount: 0,
     inventory: [],
@@ -137,7 +136,6 @@ export async function loginWithGoogle(): Promise<UserProfile> {
   }
   const cleanEmail = cred.user.email || '';
   const cleanUser = cred.user.displayName || cleanEmail.split('@')[0] || `op_${uid.slice(0, 5)}`;
-  const isBootstrapAdmin = cleanEmail.toLowerCase() === 'cindylouis2228@gmail.com';
   const newProfile: UserProfile = {
     uid,
     username: cleanUser,
@@ -154,7 +152,7 @@ export async function loginWithGoogle(): Promise<UserProfile> {
       Forensics: 0,
       Pwn: 0
     },
-    role: isBootstrapAdmin ? 'admin' : 'player',
+    role: 'player',
     dailyStreak: 0,
     dailySolvesCount: 0,
     inventory: [],

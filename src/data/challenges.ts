@@ -9,14 +9,12 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 450,
     author: 'sql_phantom',
     solvesCount: 8,
-    flag: 'flag{bl1nd_b00l34n_sql1_3xf1ltr4t10n_9941}',
     description: 'A hardened intelligence directory endpoint verifies agent identifiers without reflecting SQL errors or query results. The server returns HTTP 200 (CONFIRMED) if rows are returned, and HTTP 404 (NOT_FOUND) otherwise. Construct a true Boolean blind SQL injection payload to exfiltrate the secret flag from classified_vault character by character.',
     tags: ['Blind SQLi', 'Boolean Oracle', 'Exfiltration', 'Binary Search'],
     hints: [
       { id: 'bsqli-h1', cost: 25, text: 'Test boolean conditions using: AG-007\' AND 1=1 -- (HTTP 200) vs AG-007\' AND 1=2 -- (HTTP 404).' },
       { id: 'bsqli-h2', cost: 50, text: 'Use SUBSTR(flag, pos, 1) = \'c\' or ASCII(SUBSTR(flag, pos, 1)) > val to extract characters one at a time, or use the automated exfiltration runner.' }
     ],
-    writeup: 'The server executes: SELECT status FROM secret_agents WHERE agent_id = \'{input}\'. Since no query results or errors are returned, we perform Boolean-based blind extraction. Testing `AG-007\' AND (SELECT SUBSTR(flag, 1, 1) FROM classified_vault) = \'f\' --` returns HTTP 200 (TRUE). Repeating this for each position extracts `flag{bl1nd_b00l34n_sql1_3xf1ltr4t10n_9941}`.'
   },
   {
     id: 'cbc-padding-oracle-attack',
@@ -26,7 +24,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 500,
     author: 'vaudenay_ghost',
     solvesCount: 4,
-    flag: 'flag{p4dd1ng_0r4cl3_c0mpu73d_byt3_by_byt3_8829}',
     description: 'An encrypted authorization ticket protected by AES-128-CBC is checked by an internal microservice. While you do not hold the AES decryption key, the server leaks a cryptographic side-channel: invalid PKCS#7 padding triggers a 500 Bad Padding exception, while valid padding returns 200 OK. Conduct a byte-by-byte padding oracle attack to reconstruct the plaintext.',
     tags: ['AES-CBC', 'Padding Oracle', 'PKCS#7', 'Side-Channel', 'Vaudenay'],
     hints: [
@@ -43,7 +40,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 460,
     author: 'vm_architect',
     solvesCount: 6,
-    flag: 'flag{vm_byt3c0d3_d1s4ss3mbl3r_pwn3d_491}',
     description: 'A classified licensing dongle is protected by a proprietary virtual machine. Rather than standard x86 instructions, it interprets custom 8-bit bytecode featuring custom opcodes (LOAD, XOR, ROR, ADD, CMP, JNZ). Disassemble the virtual machine bytecode, solve the algebraic constraints on the 8-byte key, and unlock the vault.',
     tags: ['Custom VM', 'Bytecode', 'Disassembly', 'Algebraic Constraints'],
     hints: [
@@ -60,7 +56,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 480,
     author: 'libc_destroyer',
     solvesCount: 5,
-    flag: 'flag{fmt_str_4rb1tr4ry_wr1t3_st4ck_h4ck_672}',
     description: 'An internal diagnostic daemon passes untrusted user input directly to printf(user_buffer) without format specifiers. Inspect the 32-bit stack frames using %p to locate the buffer parameter offset, then construct an arbitrary memory write exploit using %n to overwrite target_auth_level at fixed memory address 0x0804C028 with value 0x1337.',
     tags: ['Format String', '%n Arbitrary Write', 'Stack Exploitation', 'Memory Corruption'],
     hints: [
@@ -77,7 +72,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 420,
     author: 'dfir_sentinel',
     solvesCount: 11,
-    flag: 'flag{m3m0ry_v0l4t1l1ty_h0ll0w1ng_4pt_8314}',
     description: 'Incident responders acquired physical RAM dump incident_host09.raw from a compromised enterprise server. Utilize the Volatility 3 framework to identify rogue network connections, locate the hollowed svchost.exe process (PAGE_EXECUTE_READWRITE injection), carve process memory, and extract the exfiltrated command-and-control flag.',
     tags: ['Volatility', 'Memory Dump', 'Process Hollowing', 'Threat Hunting'],
     hints: [
@@ -94,7 +88,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 300,
     author: 'euler_shade',
     solvesCount: 19,
-    flag: 'flag{sm4ll_exp0n3nt_cub3_r00t_rsa_543}',
     description: 'A critical communications satellite generated an RSA public key with a tiny public exponent e = 3. Even worse, the plaintext flag was encrypted without PKCS#1 padding. Recover the original message without factoring the 2048-bit modulus.',
     tags: ['RSA', 'Cube Root Attack', 'Low Exponent', 'Cryptanalysis'],
     hints: [
@@ -111,7 +104,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 320,
     author: 'kernel_panic',
     solvesCount: 16,
-    flag: 'flag{su1d_p4th_h1j4ck_r00t_sh3ll_901}',
     description: 'You have gained an unprivileged shell as guest on target machine ctf-node-07. Enumerate the filesystem for SUID binaries with improper path sanitization, hijack the environment, and escalate privileges to read /root/flag.txt.',
     tags: ['SUID', 'Privilege Escalation', 'Linux Shell', 'Environment Hijack'],
     hints: [
@@ -128,7 +120,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 350,
     author: 'v8_specter',
     solvesCount: 14,
-    flag: 'flag{pr0t0_p0llut10n_r00t_c0ntr0l_412}',
     description: 'A cloud configuration parser dynamically merges user-supplied JSON payload into server setting objects using an unvalidated recursive merge routine. Exploit JavaScript prototype pollution to inject properties into Object.prototype and hijack the authorization check.',
     tags: ['Prototype Pollution', 'Client-side', 'Logic Flaw', 'Object.prototype'],
     hints: [
@@ -145,7 +136,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 250,
     author: 'radare_eye',
     solvesCount: 22,
-    flag: 'flag{r3v_4ss3mbly_cr4ckm3_pwn3d_334}',
     description: 'An embedded licensing binary enforces key validation inside a stripped routine. Step through the simulated x86 assembly instructions, inspect virtual registers (EAX, EBX, ECX) and memory, and reverse the verification logic to crack the passkey.',
     tags: ['Assembly', 'Registers', 'x86 Reverse', 'Keygen'],
     hints: [
@@ -162,14 +152,12 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 220,
     author: 'shark_fin',
     solvesCount: 31,
-    flag: 'flag{pc4p_p4ck3t_str34m_huttp_3xf1l_617}',
     description: 'Network security monitors captured an anomalous egress spike. We have extracted the packet capture stream dump_094.pcap. Apply protocol filtering, reconstruct the TCP streams, and locate the exfiltrated multipart transmission.',
     tags: ['PCAP', 'Wireshark', 'Network Forensics', 'Stream Following'],
     hints: [
       { id: 'pcap-h1', cost: 15, text: 'Filter the capture by protocol "HTTP" or search for POST requests in the filter bar.' },
       { id: 'pcap-h2', cost: 25, text: 'Inspect the HTTP POST to /sync/report in frame #18. Click "Follow Stream" to view the base64 encoded multipart file attachment.' }
     ],
-    writeup: 'Filtering for HTTP traffic reveals an outbound POST request to `/sync/report`. Examining the raw stream reveals an exfiltrated parameter `upload_blob` containing Base64 encoded data. Decoding `ZmxhZ3twYzRwX3A0Y2szdF9zdHIzNG1faHV0dHBfM3hmMWxfNjE3fQ==` recovers the flag.'
   },
   {
     id: 'jwt-tamper-bypass',
@@ -179,7 +167,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 200,
     author: 'cipher_wraith',
     solvesCount: 28,
-    flag: 'flag{jwt_n0n3_4lg_auth_byp4ss_718}',
     description: 'A classified intelligence vault relies on JSON Web Tokens for API authorization. Current session grants only guest permissions. Investigate the token validation mechanism, exploit the algorithm confusion vulnerability, and elevate your identity to root admin to access /api/v2/vault/flag.',
     tags: ['JWT', 'Alg:None', 'Privilege Escalation', 'Auth Bypass'],
     hints: [
@@ -196,7 +183,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 180,
     author: 'krypt0s',
     solvesCount: 51,
-    flag: 'flag{x0r_c1ph3r_br0k3n_v14_fr3qu3ncy_881}',
     description: 'We intercepted an encrypted transmission from a covert telemetry channel. Our signal intelligence confirms the ciphertext was masked using single-byte XOR encryption. Use the frequency analyzer and key slider to break the cipher and read the secret.',
     tags: ['XOR', 'Frequency Analysis', 'Classical Crypto', 'Known Plaintext'],
     hints: [
@@ -213,7 +199,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 380,
     author: 'rop_sorcerer',
     solvesCount: 9,
-    flag: 'flag{r0p_ch41n_r3t2w1n_st4ck_sm4sh_8831}',
     description: 'A 64-bit ELF binary runs an unbounds gets() call inside function vuln(). Binary protections confirm No Canary, but Non-Executable stack (NX/DEP) is enabled. Calculate the 72-byte buffer offset to overwrite the saved return address on the stack, locate win() at 0x401196, and align the stack to 16 bytes using a dummy ret gadget.',
     tags: ['Buffer Overflow', 'ret2win', 'ROP', 'x86_64', 'Stack Alignment'],
     hints: [
@@ -230,7 +215,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 400,
     author: 'cloud_intruder',
     solvesCount: 12,
-    flag: 'flag{ssrf_cl0ud_m3t4d4t4_14m_p1v0t_9012}',
     description: 'An automated web hook preview microservice validates and downloads external avatars. The developer attempted to block private RFC 1918 subnets, but failed to block cloud metadata endpoints or handle decimal IP representations. Pivot through the SSRF to fetch the internal cloud instance metadata token.',
     tags: ['SSRF', 'Cloud Metadata', 'Bypass Filter', 'IAM Pivoting'],
     hints: [
@@ -247,7 +231,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 340,
     author: 'stego_phantom',
     solvesCount: 15,
-    flag: 'flag{st3g0_l34st_s1gn1f1c4nt_b1t_c4rv3d_771}',
     description: 'A covert operative transmitted an innocent-looking surveillance photograph. Steganographic analysis shows least-significant-bit (LSB) variance across the red and blue channel bitplanes. Demux the raw color bitplanes, isolate plane 0, and reconstruct the hidden ASCII archive.',
     tags: ['Steganography', 'LSB', 'Bitplanes', 'Image Forensics'],
     hints: [
@@ -264,7 +247,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 360,
     author: 'poly_crypt',
     solvesCount: 13,
-    flag: 'flag{v1g3n3r3_4ut0k3y_c1ph3r_cr4ck3d_4512}',
     description: 'An intercepted diplomatic message was encrypted using an Autokey Vigenere cipher, where the key is initialized with a secret codeword and then continued using the plaintext itself. Break the autokey cipher by guessing the known flag header and propagating the key chain backwards.',
     tags: ['Vigenere', 'Autokey', 'Polyalphabetic', 'Known Plaintext'],
     hints: [
@@ -281,7 +263,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 600,
     author: 'canary_slayer',
     solvesCount: 2,
-    flag: 'flag{gh0stw1r3_c4n4ry_l34k_r3t2l1bc_sh3ll_9934}',
     description: 'A hardened 64-bit microservice daemon is protected by full binary defenses: Stack Canaries, Non-Executable Stack (NX/DEP), and Position Independent Executables (PIE with ASLR). First, leak the random stack canary and libc base offset via a crafted format-specifier payload. Second, construct a multi-stage ret2libc ROP chain to call system("/bin/sh") without triggering __stack_chk_fail.',
     tags: ['PIE Bypass', 'Canary Leak', 'ret2libc', 'ROP Chains', 'ASLR'],
     hints: [
@@ -298,7 +279,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 650,
     author: 'lattice_monk',
     solvesCount: 1,
-    flag: 'flag{lll_l4tt1c3_r3duct10n_b14s3d_n0nc3_pwn_7721}',
     description: 'An embedded hardware security module (HSM) signs critical telemetry messages using ECDSA over secp256k1. A hardware glitch causes the ephemeral nonce generator k to leak its upper 8 bits (they are consistently fixed to 0x00). Given 4 valid signatures (r_i, s_i, h_i), formulate a Hidden Number Problem (HNP), construct a Closest Vector Problem (CVP) lattice matrix, and run the Lenstra-Lenstra-Lovász (LLL) basis reduction to recover the private key.',
     tags: ['ECDSA', 'Biased Nonce', 'LLL Reduction', 'Lattice Cryptanalysis', 'secp256k1'],
     hints: [
@@ -315,7 +295,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 620,
     author: 'poly_specter',
     solvesCount: 2,
-    flag: 'flag{p0lym0rph1c_s3lf_m0d1fy1ng_c0d3_cr4ck3d_551}',
     description: 'A classified espionage implant mutates its own executable pages at runtime using mprotect(PROT_READ|PROT_WRITE|PROT_EXEC). Every 16 instructions, a polymorphic decryptor routine unrolls an XOR rolling key to decode the next basic block while checking for debugger breakpoints (0xCC / ptrace). Neutralize the anti-debugging checks, extract the dynamic mutation keystream, and reconstruct the final validation algorithm.',
     tags: ['Self-Modifying', 'Polymorphic', 'Anti-Debug', 'mprotect', 'Dynamic Reversal'],
     hints: [
@@ -332,7 +311,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 580,
     author: 'rce_phantom',
     solvesCount: 3,
-    flag: 'flag{pyth0n_p1ckl3_g4dg3t_ch41n_rc3_8819}',
     description: 'A high-throughput distributed message worker processes serialized state snapshots via an unauthenticated WebSocket queue. The service decodes binary pickle streams with a restrictive unpickler that bans `os.system` and `subprocess`. Construct a multi-gadget reduction chain using `posix.spawnlp` or `builtins.getattr` and `builtins.exec` to bypass the namespace filter and execute a remote command.',
     tags: ['Deserialization', 'Pickle RCE', 'Filter Bypass', 'Gadget Chain', 'WebSockets'],
     hints: [
@@ -349,7 +327,6 @@ export const INITIAL_CHALLENGES: Challenge[] = [
     points: 590,
     author: 'packet_necromancer',
     solvesCount: 2,
-    flag: 'flag{tls13_k3y_sch3dul3_d0wngr4d3_d3crypt3d_612}',
     description: 'State-sponsored threat actors performed a BGP prefix hijack, intercepting high-assurance TLS 1.3 traffic. Forensic investigators seized memory dumps and network pcap streams. The target client was manipulated via a version downgrade probe. Extract the ClientRandom, ServerRandom, and Client Early Traffic Secret, reconstruct the TLS 1.3 HKDF Key Schedule, and decrypt the Application Data stream.',
     tags: ['TLS 1.3', 'HKDF Key Schedule', 'BGP Hijack', 'Traffic Decryption', 'Cryptanalysis'],
     hints: [

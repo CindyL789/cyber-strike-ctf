@@ -67,18 +67,12 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
     }
   };
 
-  const fillQuickDemo = (type: 'player' | 'admin') => {
+  const fillQuickDemo = () => {
     sound.playClick();
-    if (type === 'admin') {
-      setUsername('admin');
-      setPassword('AdminMasterPass2026!');
-      setIsRegister(false);
-    } else {
-      const randomSuffix = Math.floor(100 + Math.random() * 900);
-      setUsername(`operator_${randomSuffix}`);
-      setPassword('CyberStrikePass123!');
-      setIsRegister(true);
-    }
+    const randomSuffix = Math.floor(100 + Math.random() * 900);
+    setUsername(`operator_${randomSuffix}`);
+    setPassword('CyberStrikePass123!');
+    setIsRegister(true);
   };
 
   return (
@@ -242,24 +236,16 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
             <span>Google Account</span>
           </button>
 
-          {/* Quick Demo Credentials */}
+          {/* Quick Demo Registration */}
           <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
             <span>Instant Pre-fill:</span>
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => fillQuickDemo('player')}
+                onClick={fillQuickDemo}
                 className="text-emerald-400 hover:underline"
               >
                 + Demo Player
-              </button>
-              <span>·</span>
-              <button
-                type="button"
-                onClick={() => fillQuickDemo('admin')}
-                className="text-amber-400 hover:underline"
-              >
-                + Admin Account
               </button>
             </div>
           </div>

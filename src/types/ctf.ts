@@ -18,7 +18,6 @@ export interface Challenge {
   isDaily?: boolean;
   author: string;
   solvesCount: number;
-  flag: string;
   description: string;
   tags: string[];
   hints: Hint[];

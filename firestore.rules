@@ -2,7 +2,6 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
     function isSignedIn() {
       return request.auth != null;
     }
@@ -11,76 +10,85 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isBootstrapAdminEmail() {
-      return isSignedIn() && request.auth.token.email == "cindylouis2228@gmail.com";
-    }
-
     function isAdmin() {
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        isBootstrapAdminEmail()
-      );
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Default deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Player profiles and scores
     match /users/{userId} {
       allow read: if true;
       allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly([
+          'uid', 'username', 'email', 'score', 'solvesCount', 'solvedChallengeIds',
+          'unlockedHintIds', 'tokens', 'categoryBreakdown', 'role', 'dailyStreak',
+          'dailySolvesCount', 'inventory', 'hasRadarLicense', 'tokenBoosterCount',
+          'createdAt', 'updatedAt'
+        ])
         && request.resource.data.uid == userId
-        && request.resource.data.role == (isBootstrapAdminEmail() ? 'admin' : 'player');
-      allow update: if isSignedIn() && (
-        (
-          isOwner(userId)
-          && request.resource.data.uid == userId
-          && request.resource.data.role == resource.data.role
-        )
-        || isAdmin()
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == 'player'
+        && request.resource.data.username is string
+        && request.resource.data.username.size() >= 2
+        && request.resource.data.username.size() <= 50
+        && request.resource.data.score == 0
+        && request.resource.data.solvesCount == 0
+        && request.resource.data.solvedChallengeIds == []
+        && request.resource.data.unlockedHintIds == []
+        && request.resource.data.tokens == 250
+        && request.resource.data.dailyStreak == 0
+        && request.resource.data.dailySolvesCount == 0
+        && request.resource.data.inventory == []
+        && request.resource.data.hasRadarLicense == false
+        && request.resource.data.tokenBoosterCount == 0;
+      allow update: if isAdmin() || (
+        isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'unlockedHintIds', 'updatedAt'])
+        && request.resource.data.username is string
+        && request.resource.data.username.size() >= 2
+        && request.resource.data.username.size() <= 50
       );
       allow delete: if isAdmin();
     }
 
-    // Teams aggregating scores, solved challenges, and invitation codes
     match /teams/{teamId} {
       allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.captainId == request.auth.uid;
-      allow update: if isSignedIn() && (
-        resource.data.captainId == request.auth.uid ||
-        request.auth.uid in resource.data.memberIds ||
-        request.resource.data.memberIds.hasAny([request.auth.uid]) ||
-        isAdmin()
-      );
-      allow delete: if isSignedIn() && (resource.data.captainId == request.auth.uid || isAdmin());
+      allow write: if false;
     }
 
-    // Challenges catalog
     match /challenges/{challengeId} {
-      allow read: if true;
+      allow read: if isAdmin() || (
+        !resource.data.keys().hasAny(['flag', 'writeup'])
+      );
       allow create, update, delete: if isAdmin();
     }
 
-    // Public activity event stream
     match /activity/{activityId} {
       allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
+      allow write: if false;
     }
 
-    // Daily ops rotational schedule
     match /daily_ops/{opId} {
       allow read: if true;
-      allow create, update, delete: if true;
+      allow write: if false;
     }
 
-    // Transactions log
+    match /daily_config/{configId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /transactions/{txId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /admins/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if false;
     }
   }
 }

@@ -31,6 +31,7 @@ import {
   subscribeToChallenges,
   subscribeToActivity,
   submitFlag,
+  submitFlagByValue,
   unlockHint
 } from './services/challengeService';
 import { subscribeToScoreboard } from './services/scoreboardService';
@@ -205,63 +206,46 @@ export default function App() {
   }, [challenges, selectedCategory, selectedDifficulty, statusFilter, searchQuery, solvedIds]);
 
   // Handle Flag Submission
-  const handleFlagSubmit = (challengeId: string, flag: string): boolean => {
+  const handleFlagSubmit = async (challengeId: string, flag: string): Promise<boolean> => {
     const ch = challenges.find(c => c.id === challengeId);
-    if (!ch) return false;
-
-    const isMatch = ch.flag.trim() === flag.trim();
-    if (!isMatch) return false;
-
-    if (solvedIds.includes(challengeId)) {
-      showToast('Challenge already solved! No duplicate points.');
-      return true;
+    if (!userProfile) {
+      showToast('Sign in to submit flags to the competitive scoreboard.');
+      return false;
     }
 
-    // Apply Hardcore multiplier (+25% score bonus)
-    const bonusMultiplier = hardcoreMode ? 1.25 : 1.0;
-    const finalPoints = Math.round(ch.points * bonusMultiplier);
-
-    confetti({
-      particleCount: 80,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
-
-    if (userProfile) {
-      submitFlag(userProfile, ch, flag.trim()).catch(() => {
-        // Handled in service
-      });
-      showToast(`Flag Captured! +${finalPoints} points awarded ${hardcoreMode ? '(HARDCORE +25% BONUS!)' : ''}`);
-    } else {
-      // Guest local storage
-      const newSolves = [...guestSolvedIds, challengeId];
-      const newScore = guestScore + finalPoints;
-      const newTokens = guestTokens + (hardcoreMode ? 75 : 50);
-
-      setGuestSolvedIds(newSolves);
-      setGuestScore(newScore);
-      setGuestTokens(newTokens);
-
-      localStorage.setItem('cyberstrike_guest_solves', JSON.stringify(newSolves));
-      localStorage.setItem('cyberstrike_guest_score', newScore.toString());
-      localStorage.setItem('cyberstrike_guest_tokens', newTokens.toString());
-
-      showToast(`Flag Captured as Guest! +${finalPoints} points ${hardcoreMode ? '(HARDCORE +25% BONUS!)' : ''}`);
+    try {
+      const result = ch
+        ? await submitFlag(userProfile, ch, flag)
+        : await submitFlagByValue(flag);
+      if (result.success && result.earnedPoints > 0) {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      }
+      showToast(result.message);
+      return result.success;
+    } catch {
+      showToast('Flag submission failed. Please try again.');
+      return false;
     }
-
-    return true;
   };
 
-  const handleQuickSubmitFlag = (flag: string) => {
+  const handleQuickSubmitFlag = async (flag: string) => {
     sound.playClick();
-    const clean = flag.trim();
-    const match = challenges.find(c => c.flag.trim() === clean);
-    if (match) {
-      handleFlagSubmit(match.id, clean);
-      sound.playSuccess();
-    } else {
+    if (!userProfile) {
+      showToast('Sign in to submit flags to the competitive scoreboard.');
+      return;
+    }
+    try {
+      const result = await submitFlagByValue(flag);
+      if (result.success && result.earnedPoints > 0) {
+        sound.playSuccess();
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      } else {
+        sound.playError();
+      }
+      showToast(result.message);
+    } catch {
       sound.playError();
-      showToast('Flag rejected. No matching operation found.');
+      showToast('Flag submission failed. Please try again.');
     }
   };
 

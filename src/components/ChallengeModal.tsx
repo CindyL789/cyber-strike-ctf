@@ -50,7 +50,7 @@ interface Props {
   userTokens?: number;
   hasRadarLicense?: boolean;
   onClose: () => void;
-  onSubmitFlag: (challengeId: string, flag: string) => boolean;
+  onSubmitFlag: (challengeId: string, flag: string) => Promise<boolean>;
   onUnlockHint: (challengeId: string, hintId: string, cost: number) => void;
   onUnlockHintWithTokens?: (challengeId: string, hintId: string, tokenCost: number) => void;
   onOpenTokenStore?: () => void;
@@ -74,12 +74,12 @@ export const ChallengeModal: React.FC<Props> = ({
   const [flagInput, setFlagInput] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!flagInput.trim()) return;
 
     sound.playClick();
-    const correct = onSubmitFlag(challenge.id, flagInput.trim());
+    const correct = await onSubmitFlag(challenge.id, flagInput.trim());
     if (correct) {
       sound.playSuccess();
       setFeedback({ type: 'success', message: 'Flag Captured! Points awarded to your scoreboard.' });

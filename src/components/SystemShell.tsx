@@ -22,7 +22,7 @@ import { sound } from '../utils/audio';
 interface Props {
   challenges: Challenge[];
   userProfile: UserProfile | null;
-  onSubmitFlag: (challengeId: string, flag: string) => boolean;
+  onSubmitFlag: (challengeId: string, flag: string) => Promise<boolean>;
   onOpenChallenge?: (challenge: Challenge) => void;
 }
 
@@ -405,7 +405,7 @@ export const SystemShell: React.FC<Props> = ({
     return `${username}@${promptHost}:${displayDir}$ `;
   };
 
-  const executeCommand = (cmdLine: string) => {
+  const executeCommand = async (cmdLine: string) => {
     const trimmed = cmdLine.trim();
     if (!trimmed) return;
 
@@ -713,21 +713,13 @@ TEAM=${userProfile?.teamName || 'Solo Operator'}`
           break;
         }
 
-        const targetChallenge = challenges.find(c => c.flag.trim().toLowerCase() === flag.trim().toLowerCase());
-        if (targetChallenge) {
-          const success = onSubmitFlag(targetChallenge.id, flag.trim());
-          if (success) {
-            sound.playSuccess();
-            newOutputs.push({
-              type: 'success',
-              text: `[+] FLAG ACCEPTED! Challenge: "${targetChallenge.title}" (+${targetChallenge.points} points awarded to your scoreboard!)`
-            });
-          } else {
-            newOutputs.push({
-              type: 'output',
-              text: `[*] Flag already solved for "${targetChallenge.title}".`
-            });
-          }
+        const success = await onSubmitFlag('', flag.trim());
+        if (success) {
+          sound.playSuccess();
+          newOutputs.push({
+            type: 'success',
+            text: '[+] Flag accepted by the scoring service.'
+          });
         } else {
           sound.playError();
           newOutputs.push({
