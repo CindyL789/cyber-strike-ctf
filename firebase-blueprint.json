@@ -127,7 +127,7 @@
       "schema": "Activity",
       "description": "Live challenge capture feed items broadcasted in real-time."
     },
-    "/daily_config/{configId}": {
+    "/daily_ops/{opId}": {
       "schema": "DailyConfig",
       "description": "Daily challenge rotation tracking and streak configuration."
     },

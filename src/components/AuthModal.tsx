@@ -30,7 +30,8 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
       if (isRegister) {
         if (!username.trim()) throw new Error('Username is required.');
         if (password.length < 6) throw new Error('Password must be at least 6 characters.');
-        const profile = await registerPlayer(username, password, email);
+        if (!email.trim()) throw new Error('Email is required.');
+        const profile = await registerPlayer(email, password, username.trim());
         sound.playSuccess();
         onSuccess(profile);
         onClose();
@@ -76,6 +77,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
     } else {
       const randomSuffix = Math.floor(100 + Math.random() * 900);
       setUsername(`operator_${randomSuffix}`);
+      setEmail(`operator_${randomSuffix}@example.com`);
       setPassword('CyberStrikePass123!');
       setIsRegister(true);
     }
@@ -166,7 +168,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
           {isRegister && (
             <div className="space-y-1">
               <label className="block text-slate-300 font-medium">
-                Email Address <span className="text-slate-500 font-normal">(Optional)</span>
+                Email Address
               </label>
               <div className="relative">
                 <input
@@ -175,6 +177,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
                   onChange={e => setEmail(e.target.value)}
                   placeholder="name@domain.com"
                   className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500"
+                  required
                 />
                 <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
               </div>
