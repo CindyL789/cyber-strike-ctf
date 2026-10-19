@@ -24,28 +24,38 @@ const USERS_COLLECTION = 'users';
 const TEAMS_COLLECTION = 'teams';
 
 export function subscribeToAuthProfile(callback: (profile: UserProfile | null) => void) {
-  return onAuthStateChanged(auth, async user => {
+  let unsubscribeProfile: (() => void) | undefined;
+  const unsubscribeAuth = onAuthStateChanged(auth, user => {
+    unsubscribeProfile?.();
+    unsubscribeProfile = undefined;
+
     if (!user) {
       callback(null);
       return;
     }
 
-    try {
-      const userRef = doc(db, USERS_COLLECTION, user.uid);
-      const unsubDoc = onSnapshot(userRef, snap => {
+    const userRef = doc(db, USERS_COLLECTION, user.uid);
+    unsubscribeProfile = onSnapshot(
+      userRef,
+      snap => {
         if (snap.exists()) {
           callback(snap.data() as UserProfile);
         } else {
           // Profile doc pending initialization
           callback(null);
         }
-      });
-      return () => unsubDoc();
-    } catch (err) {
-      handleFirestoreError(err, OperationType.GET, `${USERS_COLLECTION}/${user.uid}`);
-      callback(null);
-    }
+      },
+      error => {
+        handleFirestoreError(error, OperationType.GET, `${USERS_COLLECTION}/${user.uid}`);
+        callback(null);
+      }
+    );
   });
+
+  return () => {
+    unsubscribeAuth();
+    unsubscribeProfile?.();
+  };
 }
 
 export async function registerPlayer(email: string, pass: string, username: string): Promise<UserProfile> {
@@ -99,7 +109,17 @@ export async function registerPlayer(email: string, pass: string, username: stri
 }
 
 export async function loginPlayer(email: string, pass: string): Promise<UserProfile> {
-  const cred = await signInWithEmailAndPassword(auth, email.trim(), pass);
+  let loginEmail = email.trim();
+  if (!loginEmail.includes('@')) {
+    const userQuery = query(collection(db, USERS_COLLECTION), where('username', '==', loginEmail));
+    const userSnapshot = await getDocs(userQuery);
+    if (userSnapshot.empty) {
+      throw new Error(`No account found for username "${loginEmail}".`);
+    }
+    loginEmail = userSnapshot.docs[0].data().email;
+  }
+
+  const cred = await signInWithEmailAndPassword(auth, loginEmail, pass);
   const snap = await getDoc(doc(db, USERS_COLLECTION, cred.user.uid));
   if (snap.exists()) {
     return snap.data() as UserProfile;
